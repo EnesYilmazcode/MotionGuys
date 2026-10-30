@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="MotionBricks characters race through an obstacle course" />
+    <title>MotionGuys</title>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div><h1>MotionGuys</h1><p>Eight runners. One finish line.</p></div>
+        <div class="controls"><button id="pause">Pause</button><button id="restart">Restart</button></div>
+      </header>
+      <section id="arena" aria-label="Obstacle race spectator view"></section>
+      <aside><div class="race-heading"><h2>The race</h2><span id="clock">0.0s</span></div><ol id="standings"></ol><p class="note">Skeleton preview<br>Procedural animation. MotionBricks connection comes next.</p></aside>
+      <footer>Run. Vault. Duck. Jump. <span>Seed <b id="seed"></b></span></footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

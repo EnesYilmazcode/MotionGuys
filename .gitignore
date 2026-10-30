@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env*
+!.env.example
+models/
+runs/
+renders/
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+Thumbs.db

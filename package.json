@@ -1,0 +1,17 @@
+{
+  "name": "motion-guys",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MotionBricks characters race through an obstacle course",
+  "type": "module",
+  "engines": { "node": ">=22.14.0" },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "check": "tsc --noEmit",
+    "build": "npm run check && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "dependencies": { "three": "0.186.1" },
+  "devDependencies": { "@types/three": "0.186.0", "typescript": "5.9.3", "vite": "8.3.5" }
+}
