@@ -6,7 +6,10 @@ export interface SpleefMeta extends Omit<RaceMeta, 'course' | 'runners'> {
   runners: SpleefRunner[];
 }
 
+export interface Shot { start: number; runner: number; }
+
 export interface RoundState {
+  falling: boolean[];
   shaking: Set<string>;
   gone: Map<string, number>;
   falls: number[];
@@ -21,7 +24,7 @@ export const tileKey = (layer: number, column: number, row: number) => `${layer}
 export function roundStateAt(meta: SpleefMeta, time: number): RoundState {
   const count = meta.runners.length;
   const state: RoundState = {
-    shaking: new Set(), gone: new Map(), falls: Array(count).fill(0), layer: Array(count).fill(0),
+    falling: Array(count).fill(false), shaking: new Set(), gone: new Map(), falls: Array(count).fill(0), layer: Array(count).fill(0),
     out: Array(count).fill(null), winner: null,
   };
   for (const event of meta.events) {
@@ -30,7 +33,8 @@ export function roundStateAt(meta: SpleefMeta, time: number): RoundState {
     if (event.type === 'tile_shake') state.shaking.add(key);
     if (event.type === 'tile_drop') { state.shaking.delete(key); state.gone.set(key, event.t); }
     if (event.runner === null) continue;
-    if (event.type === 'fall') state.falls[event.runner]++;
+    if (event.type === 'fall') { state.falls[event.runner]++; state.falling[event.runner] = true; }
+    if (event.type === 'recover' || event.type === 'eliminated') state.falling[event.runner] = false;
     if (event.type === 'land') state.layer[event.runner] = event.layer as number;
     if (event.type === 'eliminated') state.out[event.runner] = event.t;
     if (event.type === 'winner') state.winner = event.runner;
@@ -46,8 +50,51 @@ export function ranking(meta: SpleefMeta, state: RoundState) {
       || (b.out ?? Infinity) - (a.out ?? Infinity) || a.layer - b.layer);
 }
 
+/** Everyone still on the highest occupied floor and on their feet. */
+export function topRunners(state: RoundState) {
+  const alive = state.layer.map((layer, runner) => ({ layer, runner })).filter(({ runner }) => state.out[runner] === null);
+  const standing = alive.filter(({ runner }) => !state.falling[runner]);
+  const pool = standing.length ? standing : alive;
+  const top = Math.min(...pool.map(({ layer }) => layer));
+  return pool.filter(({ layer }) => layer === top).map(({ runner }) => runner);
+}
+
+/**
+ * Who the spectator camera watches, like a spectator view. It follows one runner for a few
+ * seconds. If they fall, it stays long enough to see it, then cuts to a runner on the top floor.
+ * The winner gets the last shot.
+ */
+export function spectatorShots(meta: SpleefMeta, duration: number, holdSeconds = 6, fallLinger = 1.1): Shot[] {
+  let random = (meta.seed * 2654435761 + 1) >>> 0;
+  const pick = (runners: number[]) => {
+    random = (random * 1664525 + 1013904223) >>> 0;
+    return runners[random % runners.length];
+  };
+  const win = meta.events.find(event => event.type === 'winner');
+  const shots: Shot[] = [{ start: 0, runner: pick(meta.runners.map((_, index) => index)) }];
+  while (true) {
+    const current = shots[shots.length - 1];
+    const fall = meta.events.find(event => event.t >= current.start && event.runner === current.runner && (event.type === 'fall' || event.type === 'eliminated'));
+    let next = current.start + holdSeconds;
+    if (fall) next = Math.min(next, fall.t + fallLinger);
+    if (win && next >= win.t) {
+      if (current.runner !== win.runner) shots.push({ start: Math.max(win.t, current.start + 0.01), runner: win.runner as number });
+      break;
+    }
+    if (next >= duration) break;
+    const top = topRunners(roundStateAt(meta, next));
+    const others = top.filter(runner => runner !== current.runner);
+    if (!top.length) break;
+    shots.push({ start: next, runner: pick(others.length && !top.includes(current.runner) ? others : others.length ? others : top) });
+  }
+  return shots;
+}
+
+export const shotAt = (shots: Shot[], time: number) => shots.reduce((found, shot) => (shot.start <= time ? shot : found), shots[0]);
+
 const DESCRIPTIONS: Partial<Record<string, (event: RaceEvent, name: string) => string>> = {
-  fall: (event, name) => event.cause === 'edge' ? `${name} ran off the edge` : `${name} fell through`,
+  leap: (_, name) => `${name} leaped`,
+  fall: (event, name) => event.cause === 'edge' ? `${name} ran off the edge` : event.cause === 'leap' ? `${name} came up short` : `${name} fell through`,
   land: (event, name) => `${name} landed on floor ${(event.layer as number) + 1}`,
   eliminated: (_, name) => `${name} is out`,
   winner: (_, name) => `${name} wins`,

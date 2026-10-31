@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { describeRound, ranking, roundStateAt, tileKey, type SpleefMeta } from '../src/game/spleef.ts';
+import { describeRound, ranking, roundStateAt, shotAt, spectatorShots, tileKey, topRunners, type SpleefMeta } from '../src/game/spleef.ts';
 
 const runner = (name: string) => ({ name, color: '#fff', gear: 'cap', bulk: 1, eliminatedAt: null });
 const meta: SpleefMeta = {
@@ -38,6 +38,26 @@ test('the winner ranks first, then whoever lasted longest', () => {
 
 test('runners still in rank ahead of runners who are out', () => {
   assert.equal(ranking(meta, roundStateAt(meta, 5.5))[2].name, 'Bo');
+});
+
+test('only runners on the top floor who are on their feet count as top', () => {
+  assert.deepEqual(topRunners(roundStateAt(meta, 3.5)), [1, 2]);
+  assert.deepEqual(topRunners(roundStateAt(meta, 5.5)), [2]);
+});
+
+test('the camera cuts away shortly after a fall and ends on the winner', () => {
+  const shots = spectatorShots(meta, 8, 100);
+  assert.equal(shots[shots.length - 1].runner, 2);
+  assert.ok(shots[shots.length - 1].start <= 7);
+  for (const shot of shots.slice(0, -1)) {
+    const fall = meta.events.find(event => event.t >= shot.start && event.runner === shot.runner && (event.type === 'fall' || event.type === 'eliminated'));
+    assert.ok(fall, 'a shot with a 100 s hold only ends because its runner fell');
+    assert.equal(shotAt(shots, fall.t).runner, shot.runner, 'the fall itself stays on screen');
+  }
+});
+
+test('the same seed always gives the same shots', () => {
+  assert.deepEqual(spectatorShots(meta, 8), spectatorShots(meta, 8));
 });
 
 test('events read as plain sentences', () => {
