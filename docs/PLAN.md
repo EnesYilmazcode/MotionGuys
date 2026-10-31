@@ -13,14 +13,15 @@ Eight generated runners on courses that can actually beat them. MotionBricks sup
 - Failures decided by generated joints against course geometry, with a scripted tumble and a generated get-up.
 - A browser replay of recorded races on an original mannequin.
 
-## Next: better Spleef
+## Next: a slower, tenser final
 
-Jumps and the spectator camera work. Next:
+Runners now leap only at gaps, on fewer and bigger tiles. Rounds still end in about 20 s because everyone runs nonstop. Next:
 
-1. Steer leap landings, because touchdown distance varies widely and causes misses.
-2. Reduce foot sliding on sharp turns, which shows more up close.
-3. Try real SOMA body shapes in place of drawn builds, and check for foot sliding.
-4. Add sound and a tighter cut for the X video.
+1. Slow the runners down, and test whether the leap still works from a slower approach.
+2. Reduce foot sliding on turns, which a slow close-up will make obvious.
+3. Steer leap landings, because touchdown distance varies widely and causes misses.
+4. Render a close final between the last two runners, with sound, as the first real post.
+5. As a second post, compare Kimodo and MotionBricks on one simple task. Both use the SOMA skeleton and the same mocap data.
 
 ## Later
 
