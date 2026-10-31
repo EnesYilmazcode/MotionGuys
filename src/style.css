@@ -20,6 +20,8 @@ li { display: flex; align-items: center; gap: 10px; padding: 12px 0; font-size: 
 .swatch { width: 9px; height: 9px; border-radius: 50%; }
 .place { width: 14px; color: #8fa2b9; }
 .status { margin-left: auto; font-size: 11px; color: #9cacbf; }
-.note { font-size: 11px; line-height: 1.7; color: #8fa2b9; margin-top: 25px; }
+#standings li { padding: 8px 0; }
+#feed li { display: block; border: 0; padding: 3px 0; font-size: 11px; line-height: 1.4; color: #9cacbf; }
+#feed li:first-child { color: #eff5f9; }
 footer { grid-column: 1 / -1; border-top: 1px solid #2a3749; padding: 12px 28px; font-size: 12px; color: #9cacbf; display: flex; justify-content: space-between; }
 @media (max-width: 650px) { main { grid-template-columns: 1fr 155px; } header { padding: 16px; } aside { padding: 22px 12px; } .status { display: none; } footer { padding-inline: 16px; } }

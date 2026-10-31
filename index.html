@@ -9,12 +9,12 @@
   <body>
     <main>
       <header>
-        <div><h1>MotionGuys</h1><p>Eight runners. One finish line.</p></div>
+        <div><h1>MotionGuys</h1><p>Eight generated runners. Fake doors, sweepers, shaky tiles.</p></div>
         <div class="controls"><button id="pause">Pause</button><button id="restart">Restart</button></div>
       </header>
       <section id="arena" aria-label="Obstacle race spectator view"></section>
-      <aside><div class="race-heading"><h2>The race</h2><span id="clock">0.0s</span></div><ol id="standings"></ol><p class="note">Skeleton preview<br>Procedural animation. MotionBricks connection comes next.</p></aside>
-      <footer>Run. Vault. Duck. Jump. <span>Seed <b id="seed"></b></span></footer>
+      <aside><div class="race-heading"><h2>The race</h2><span id="clock">0.0s</span></div><ol id="standings"></ol><ol id="feed" aria-live="polite"></ol></aside>
+      <footer>Drag to look around, double click to follow the pack. <span>Seed <b id="seed"></b></span></footer>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
