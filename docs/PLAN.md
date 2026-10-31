@@ -13,14 +13,15 @@ Eight generated runners on courses that can actually beat them. MotionBricks sup
 - Failures decided by generated joints against course geometry, with a scripted tumble and a generated get-up.
 - A browser replay of recorded races on an original mannequin.
 
-## Next: Spleef
+## Next: better Spleef
 
-Eight runners on a floor that falls away where they step, last one standing wins. It suits MotionBricks because failure needs no explanation and most of the skill is footwork.
+The first round works and is recorded. Next:
 
-1. Size tiles from the measured jump. `jump_0_75m` clears about 0.6 m, so runners cannot jump a normal missing tile. They route around holes, unless a longer authored jump proves itself.
-2. Test sharp turns at running speed, which set the smallest usable tile.
-3. Stack floors so a fall lands on the layer below, and the bottom layer eliminates.
-4. Try different SOMA body shapes and check for foot sliding before promising them.
+1. Move the camera closer and cut to the falls, because runners look small from this distance.
+2. End a recording when the winner is decided, so the winner never falls afterward.
+3. Look for foot sliding on sharp turns, and tune turning or tile size if it shows.
+4. Try a jump over a tile. It needs a longer flight and a much shorter run-up than the upstream primitives have.
+5. Try real SOMA body shapes in place of drawn builds, and check for foot sliding.
 
 ## Later
 
