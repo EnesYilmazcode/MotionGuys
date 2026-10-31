@@ -20,6 +20,7 @@ li { display: flex; align-items: center; gap: 10px; padding: 12px 0; font-size: 
 .swatch { width: 9px; height: 9px; border-radius: 50%; }
 .place { width: 14px; color: #8fa2b9; }
 .status { margin-left: auto; font-size: 11px; color: #9cacbf; }
+#watching-label { position: absolute; left: 18px; top: 8px; z-index: 1; margin: 0; padding: 6px 12px; font-size: 13px; color: #eff5f9; background: #101b2ccc; border-radius: 7px; }
 #standings li { padding: 8px 0; }
 #feed li { display: block; border: 0; padding: 3px 0; font-size: 11px; line-height: 1.4; color: #9cacbf; }
 #feed li:first-child { color: #eff5f9; }

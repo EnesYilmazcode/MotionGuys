@@ -4,6 +4,7 @@ import type { Recording, Vec3 } from './game/playback.ts';
 // An original mannequin: chunky capsule limbs, mitten hands, a round helmet with a visor.
 const bones: [string, string, number][] = [
   ['Hips', 'Chest', 0.2], ['Chest', 'Neck1', 0.17],
+  ['Chest', 'LeftArm', 0.08], ['Chest', 'RightArm', 0.08], ['Hips', 'LeftLeg', 0.1], ['Hips', 'RightLeg', 0.1],
   ['LeftLeg', 'LeftShin', 0.1], ['LeftShin', 'LeftFoot', 0.085], ['LeftFoot', 'LeftToeEnd', 0.075],
   ['RightLeg', 'RightShin', 0.1], ['RightShin', 'RightFoot', 0.085], ['RightFoot', 'RightToeEnd', 0.075],
   ['LeftArm', 'LeftForeArm', 0.07], ['LeftForeArm', 'LeftHand', 0.062],

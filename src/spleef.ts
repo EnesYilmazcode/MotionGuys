@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Figure } from './figure.ts';
-import { Recording, type RaceMeta } from './game/playback.ts';
-import { describeRound, ranking, roundStateAt, tileKey, type SpleefMeta } from './game/spleef.ts';
+import { Recording, type RaceMeta, type Vec3 } from './game/playback.ts';
+import { describeRound, ranking, roundStateAt, shotAt, spectatorShots, tileKey, type SpleefMeta } from './game/spleef.ts';
 import './style.css';
 
 const seed = new URLSearchParams(location.search).get('seed') ?? '1';
@@ -17,7 +17,7 @@ const { arena: floors } = meta;
 const arena = document.querySelector<HTMLElement>('#arena')!;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#1b2a4a');
-scene.fog = new THREE.Fog('#1b2a4a', 45, 90);
+scene.fog = new THREE.Fog('#1b2a4a', 28, 70);
 const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 200);
 camera.position.set(17, 17, 20);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -26,7 +26,7 @@ renderer.shadowMap.enabled = true;
 arena.append(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.maxDistance = 70;
-controls.minDistance = 5;
+controls.minDistance = 3;
 scene.add(new THREE.HemisphereLight(0xffffff, 0x445577, 1.6));
 const sun = new THREE.DirectionalLight(0xffffff, 2);
 sun.position.set(-10, 28, 8);
@@ -54,6 +54,11 @@ for (let layer = 0; layer < floors.layers; layer++) {
 }
 
 const figures = meta.runners.map((runner, index) => new Figure(scene, recording, index, runner));
+const shots = spectatorShots(meta, recording.duration);
+const watching = document.querySelector<HTMLElement>('#watching')!;
+let spectating = true;
+renderer.domElement.addEventListener('pointerdown', () => { spectating = false; });
+renderer.domElement.addEventListener('dblclick', () => { spectating = true; });
 const standingsList = document.querySelector<HTMLOListElement>('#standings')!;
 const clockLabel = document.querySelector<HTMLElement>('#clock')!;
 const feed = document.querySelector<HTMLOListElement>('#feed')!;
@@ -76,8 +81,8 @@ function highestActiveFloor(state: ReturnType<typeof roundStateAt>) {
 }
 
 function drawFloors(state: ReturnType<typeof roundStateAt>) {
-  // A floor everyone has left would only block the view of the one below.
-  const topFloor = highestActiveFloor(state);
+  // A floor above the action would only block the view of the one below.
+  const topFloor = spectating ? state.layer[shotAt(shots, time).runner] : highestActiveFloor(state);
   for (const [key, tile] of tiles) {
     const dropped = state.gone.get(key);
     const shaking = state.shaking.has(key);
@@ -100,18 +105,36 @@ function drawHud(state: ReturnType<typeof roundStateAt>) {
   feed.innerHTML = meta.events.filter(event => event.t <= time).map(event => describeRound(event, meta)).filter(Boolean).slice(-5).reverse().map(line => `<li>${line}</li>`).join('');
 }
 
-// The camera sinks with the action, to the highest floor anyone is still on.
-const focus = new THREE.Vector3();
-function followAction(state: ReturnType<typeof roundStateAt>, smoothing: number) {
-  const y = -highestActiveFloor(state) * floors.layerHeight;
-  const move = (y - focus.y) * smoothing;
-  focus.y += move;
-  camera.position.y += move;
-  sun.position.y += move;
-  sun.target.position.y += move;
-  controls.target.copy(focus);
-}
 scene.add(sun.target);
+const hips: Vec3 = [0, 0, 0];
+const past: Vec3 = [0, 0, 0];
+const lookAt = new THREE.Vector3();
+const behind = new THREE.Vector3();
+
+// A chase camera over the watched runner. It is a pure function of time, so seeking and replay match.
+function spectate() {
+  const { runner } = shotAt(shots, time);
+  const name = meta.runners[runner].name;
+  if (watching.textContent !== name) watching.textContent = name;
+  let t = time;
+  while (t > 0 && !recording.joint(t, runner, 0, hips)) t -= 0.1;
+  if (!recording.joint(t, runner, 0, hips)) return;
+  behind.set(0, 0, 0);
+  for (const seconds of [0.8, 1.6, 2.4]) {
+    recording.joint(Math.max(t - seconds, 0), runner, 0, past);
+    behind.set(past[1] - hips[1], 0, past[0] - hips[0]);
+    if (behind.length() > 0.8) break;
+  }
+  if (behind.length() < 0.01) behind.set(hips[1], 0, hips[0]);
+  if (behind.length() < 0.01) behind.set(0, 0, -1);
+  behind.normalize();
+  lookAt.set(hips[1] - behind.x * 1.2, Math.max(hips[2], -floors.layers * floors.layerHeight) + 0.1, hips[0] - behind.z * 1.2);
+  camera.position.set(hips[1] + behind.x * 4.2, lookAt.y + 2.2, hips[0] + behind.z * 4.2);
+  camera.lookAt(lookAt);
+  controls.target.copy(lookAt);
+  sun.target.position.set(hips[1], lookAt.y, hips[0]);
+  sun.position.set(hips[1] - 8, lookAt.y + 24, hips[0] + 6);
+}
 
 let previous = performance.now();
 function frame(now: number) {
@@ -122,10 +145,10 @@ function frame(now: number) {
   drawFloors(state);
   drawHud(state);
   figures.forEach(figure => figure.draw(time));
-  followAction(state, 0.04);
-  controls.update();
+  if (spectating) spectate();
+  else controls.update();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
-Object.assign(window, { seekRace: (seconds: number) => { time = seconds; paused = true; followAction(roundStateAt(meta, time), 1); } });
+Object.assign(window, { seekRace: (seconds: number) => { time = seconds; paused = true; } });
 requestAnimationFrame(frame);

@@ -12,9 +12,9 @@
         <div><h1>MotionGuys Spleef</h1><p>Every tile you step on falls. Last one standing wins.</p></div>
         <div class="controls"><button id="pause">Pause</button><button id="restart">Restart</button></div>
       </header>
-      <section id="arena" aria-label="Spleef spectator view"></section>
+      <section id="arena" aria-label="Spleef spectator view"><p id="watching-label">Watching <b id="watching"></b></p></section>
       <aside><div class="race-heading"><h2>The round</h2><span id="clock">0.0s</span></div><ol id="standings"></ol><ol id="feed" aria-live="polite"></ol></aside>
-      <footer>Drag to look around. <span>Seed <b id="seed"></b></span></footer>
+      <footer>Drag to look around, double click to go back to spectating. <span>Seed <b id="seed"></b></span></footer>
     </main>
     <script type="module" src="/src/spleef.ts"></script>
   </body>
