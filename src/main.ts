@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Figure } from './figure.ts';
 import { Recording, courseStateAt, describe, standings, type RaceMeta, type Vec3 } from './game/playback.ts';
 import './style.css';
 
@@ -98,69 +99,8 @@ for (let row = 0; row < tiles.rows; row++) for (let column = 0; column < tiles.c
   tileMeshes.set(`${row}:${column}`, mesh);
 }
 
-// An original mannequin: chunky capsule limbs, mitten hands, a round helmet with a visor.
-const bones: [string, string, number][] = [
-  ['Hips', 'Chest', 0.2], ['Chest', 'Neck1', 0.17],
-  ['LeftLeg', 'LeftShin', 0.1], ['LeftShin', 'LeftFoot', 0.085], ['LeftFoot', 'LeftToeEnd', 0.075],
-  ['RightLeg', 'RightShin', 0.1], ['RightShin', 'RightFoot', 0.085], ['RightFoot', 'RightToeEnd', 0.075],
-  ['LeftArm', 'LeftForeArm', 0.07], ['LeftForeArm', 'LeftHand', 0.062],
-  ['RightArm', 'RightForeArm', 0.07], ['RightForeArm', 'RightHand', 0.062],
-];
-const jointIndex = new Map(meta.joints.map((name, index) => [name, index]));
-const unitCapsule = new THREE.CapsuleGeometry(1, 1, 6, 14);
-const up = new THREE.Vector3(0, 1, 0);
-const figures = meta.runners.map(runner => {
-  const suit = new THREE.MeshStandardMaterial({ color: runner.color, roughness: 0.45 });
-  const trim = new THREE.MeshStandardMaterial({ color: '#25354a', roughness: 0.5 });
-  const group = new THREE.Group();
-  const limbs = bones.map(([from, to, radius]) => {
-    const dark = from.endsWith('Foot');
-    const mesh = new THREE.Mesh(unitCapsule, dark ? trim : suit);
-    mesh.castShadow = true;
-    group.add(mesh);
-    return { a: jointIndex.get(from)!, b: jointIndex.get(to)!, radius, mesh };
-  });
-  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 14), suit);
-  const visor = new THREE.Mesh(new THREE.SphereGeometry(0.135, 16, 10), new THREE.MeshStandardMaterial({ color: '#1c2738', roughness: 0.15 }));
-  helmet.castShadow = true;
-  group.add(helmet, visor);
-  scene.add(group);
-  return { group, limbs, helmet, visor };
-});
-
+const figures = meta.runners.map((runner, index) => new Figure(scene, recording, index, runner));
 const a: Vec3 = [0, 0, 0];
-const b: Vec3 = [0, 0, 0];
-const start = new THREE.Vector3();
-const end = new THREE.Vector3();
-const head = jointIndex.get('Head')!;
-const headEnd = jointIndex.get('HeadEnd')!;
-const chest = jointIndex.get('Chest')!;
-
-function drawRunner(time: number, runner: number) {
-  const figure = figures[runner];
-  if (!recording.joint(time, runner, 0, a)) { figure.group.visible = false; return; }
-  figure.group.visible = true;
-  for (const limb of figure.limbs) {
-    recording.joint(time, runner, limb.a, a);
-    recording.joint(time, runner, limb.b, b);
-    start.set(a[1], a[2], a[0]);
-    end.set(b[1], b[2], b[0]);
-    limb.mesh.position.lerpVectors(start, end, 0.5);
-    end.sub(start);
-    const length = end.length();
-    // The unit capsule is 3 long, so this makes it reach both joints plus its radius.
-    limb.mesh.scale.set(limb.radius, (length + limb.radius * 2) / 3, limb.radius);
-    limb.mesh.quaternion.setFromUnitVectors(up, end.normalize());
-  }
-  recording.joint(time, runner, head, a);
-  recording.joint(time, runner, headEnd, b);
-  figure.helmet.position.set((a[1] + b[1]) / 2, (a[2] + b[2]) / 2, (a[0] + b[0]) / 2);
-  // The visor sits on the side of the head that faces the way the chest is leaning into.
-  recording.joint(time, runner, chest, b);
-  start.set(a[1] - b[1], 0, a[0] - b[0]);
-  if (start.lengthSq() < 1e-4) start.set(0, 0, 1);
-  figure.visor.position.copy(figure.helmet.position).addScaledVector(start.normalize(), 0.06);
-}
 
 const standingsList = document.querySelector<HTMLOListElement>('#standings')!;
 const clockLabel = document.querySelector<HTMLElement>('#clock')!;
@@ -240,7 +180,7 @@ function frame(now: number) {
   previous = now;
   if (!paused) time = Math.min(time + elapsed, recording.duration);
   drawHud(drawCourse());
-  for (let runner = 0; runner < meta.runners.length; runner++) drawRunner(time, runner);
+  figures.forEach(figure => figure.draw(time));
   followPack();
   controls.update();
   renderer.render(scene, camera);
