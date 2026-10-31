@@ -15,13 +15,12 @@ Eight generated runners on courses that can actually beat them. MotionBricks sup
 
 ## Next: better Spleef
 
-The first round works and is recorded. Next:
+Jumps and the spectator camera work. Next:
 
-1. Move the camera closer and cut to the falls, because runners look small from this distance.
-2. End a recording when the winner is decided, so the winner never falls afterward.
-3. Look for foot sliding on sharp turns, and tune turning or tile size if it shows.
-4. Try a jump over a tile. It needs a longer flight and a much shorter run-up than the upstream primitives have.
-5. Try real SOMA body shapes in place of drawn builds, and check for foot sliding.
+1. Steer leap landings, because touchdown distance varies widely and causes misses.
+2. Reduce foot sliding on sharp turns, which shows more up close.
+3. Try real SOMA body shapes in place of drawn builds, and check for foot sliding.
+4. Add sound and a tighter cut for the X video.
 
 ## Later
 

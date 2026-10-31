@@ -17,6 +17,7 @@ Lessons from driving the runtime directly:
 
 - Create a new Smart Primitive per action. `align_sequence_pivot` clamps to limits around a primitive's first placement, so reusing one drags the runner back to that spot.
 - The model only sees poses. Writing a tumble into `current_pose` and recording it is enough for the next generation to start from the floor.
+- Upstream jumps spend about 2 s reaching their entry target. Skipping it and moving the landing target gives a faster, longer jump, but check hip speed frame by frame. Several settings looked long on paper only because the root moved at 9 to 10 m/s.
 - Discard frames before the runner is moving and fail the run if a clip plays. Idle clips are sample motions under an evaluation-only license.
 
 ## First headless run

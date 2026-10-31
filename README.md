@@ -73,26 +73,31 @@ Contact uses joint positions, not a body mesh, and runners pass through each oth
 
 ## Spleef
 
-A second game on the same pipeline, at `spleef.html`. Every tile a foot touches falls 1 s later. A fall lands you on the floor below, and falling past the third floor puts you out. Last one standing wins. It is my take on the idea of a collapsing floor, with original tiles and characters.
+A second game on the same pipeline, at `spleef.html`. Every tile a foot touches falls 1 s later. A fall lands you on the floor below, and falling past the third floor puts you out. Last one standing wins. The tiles and characters are original.
 
 <p align="center">
-  <img src="media/spleef.gif" width="560" alt="Eight generated runners on three stacked floors of square tiles that drop away behind them">
+  <img src="media/spleef-chase.gif" width="560" alt="A close chase camera follows generated runners as they run and leap across square tiles that drop away">
 </p>
 
-Three recorded rounds, eight runners each, on a Modal A10.
+Runners jump. The upstream jump runs up for about 2 s and clears about 0.6 m, so `scripts/modal_leap.py` skips its entry target and pushes its landing target farther out, and MotionBricks generates the motion between them. Takeoff now comes about 0.6 s after the decision. The result is a big, tucked, cartoony leap, not a natural one. A more natural setting only cleared about 1 m.
+
+Six recorded rounds, eight runners each, on a Modal A10.
 
 | Measure | Value |
 |---|---:|
-| Round length | 22.2 s to 25.4 s |
-| Tiles dropped | 674 |
-| Falls | 60 |
-| Falls off the edge | 13 |
-| Get-ups back above 1.35 m | 37 of 37 |
-| Median get-up | 0.87 s |
-| Slowest get-up | 1.23 s |
-| Runner median speed | 2.27 m/s to 2.99 m/s |
+| Round length | 18.2 s to 23.6 s |
+| Leaps | 130 |
+| Leaps landed on floor | 106 |
+| Leaps that came down over a hole | 24 |
+| Leaps aimed across a hole, landed | 35 of 46 |
+| Touchdown distance, 5th to 95th percentile | 1.3 m to 6.8 m |
+| Falls | 110 |
+| Get-ups back above 1.35 m | 65 of 65 |
+| Median get-up | 0.93 s |
 
-Runners do not jump here. `jump_0_75m` clears about 0.6 m and a tile is 1.25 m, and a jump also commits about 2 s ahead, so they run around holes. Feet on the ground move about 0.4 m/s at the median but about 6 m/s at the 95th percentile, so some sliding is expected on sharp turns. Different builds and headgear are drawn on the same skeleton, not separate body models. In 2 of 3 rounds the winner also fell in the seconds after winning.
+The spectator camera follows a random runner up close for up to 6 s. If that runner falls, it stays about a second, then cuts to someone on the highest floor, and the winner gets the last shot.
+
+A leap's landing spot is not steered, so its wide spread causes some of the misses. Feet on the ground move about 0.5 m/s at the median but about 6 m/s at the 95th percentile, so expect visible sliding on sharp turns. The tumble is scripted, while jumps and get-ups are generated. Different builds and headgear are drawn on one skeleton, not separate body models. A recording ends about a second after the win.
 
 ## The video
 
@@ -109,10 +114,11 @@ npm run build           # check and build the browser replay
 modal run scripts/modal_race.py::main --seeds 1,2,3   # record races, into runs/races/
 modal run scripts/modal_race.py::jumps                # measure jump distance
 modal run scripts/modal_spleef.py --seeds 1,2,3       # record Spleef rounds, into runs/spleef/
+modal run scripts/modal_leap.py                       # measure jump settings, into runs/
 python scripts/check_race.py 1 2 3                    # progress and failures by runner
 ```
 
-Open `spleef.html` for Spleef. Append `?seed=1`, `?seed=2`, or `?seed=3` to pick a recording. Drag to look around and double click to follow the pack again.
+Open `spleef.html` for Spleef, with seeds 1 to 6. Drag to look around, and double click to go back to spectating. Append `?seed=1`, `?seed=2`, or `?seed=3` to pick a race.
 
 The replay needs no API keys or GPU. Recording needs a Modal account. A cold first run builds an image in about 4 minutes and a TensorRT plan in about 2. With those cached, three Spleef rounds took 35 s from launch to results.
 
@@ -123,7 +129,7 @@ The replay needs no API keys or GPU. Recording needs a Modal account. A cold fir
 | [`src/main.ts`](src/main.ts), [`src/spleef.ts`](src/spleef.ts) | the two Three.js views and spectator controls |
 | [`src/figure.ts`](src/figure.ts) | the original mannequin |
 | [`public/races/`](public/races/) | three recorded races |
-| [`public/spleef/`](public/spleef/) | three recorded Spleef rounds |
+| [`public/spleef/`](public/spleef/) | six recorded Spleef rounds |
 | [`docs/`](docs/) | the build plan and motion integration notes |
 | [`tests/`](tests/) | recording and event replay checks |
 | [`media/`](media/) | the README GIFs and an early course diagram |
