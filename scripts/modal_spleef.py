@@ -21,14 +21,14 @@ from modal_race import (
 
 LAYERS = 3
 LAYER_HEIGHT = 6.0
-TILE = 1.25
-TILES = 16
+TILE = 1.6
+TILES = 10
 HALF = TILE * TILES / 2
-DROP_SECONDS = 1.0
+DROP_SECONDS = 1.5
 STEP_HEIGHT = 0.08
 MAX_SECONDS = 150.0
 PREROLL_SECONDS = 2.0
-SPAWN_RADIUS = 8.5
+SPAWN_RADIUS = 7.5
 THINK_FRAMES = 18
 LIE_SECONDS = 0.7
 NO_TRIGGER_SECONDS = 2.0
@@ -147,7 +147,7 @@ def choose_direction(floors, runner, x, y, heading, rng, others):
 
 
 def choose_leap(floors, runner, x, y, rng):
-    """A direction near the current heading with solid takeoff and landing, preferring one that crosses a hole."""
+    """A direction near the current heading with solid takeoff, a gap, and a solid landing right after it."""
     import numpy as np
 
     crossing, plain = [], []
@@ -168,10 +168,9 @@ def choose_leap(floors, runner, x, y, rng):
         landing = all(clear(d, side) for d in LANDING_CHECKS for side in (-LANDING_WIDTH, 0.0, LANDING_WIDTH))
         if landing and all(present(d) for d in TAKEOFF_CHECKS):
             (plain if all(clear(d) for d in HOLE_CHECKS) else crossing).append(direction)
+    # Only jump when there is a reason to. Random jumps on open floor read as noise.
     if crossing:
         return crossing[int(rng.integers(len(crossing)))], True
-    if plain and rng.random() < runner.bravery / 4:
-        return plain[int(rng.integers(len(plain)))], False
     return None, False
 
 
