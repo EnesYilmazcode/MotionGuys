@@ -16,14 +16,14 @@ Eight autonomous runners in a colorful obstacle race. The camera watches them co
 
 ## First real motion milestone
 
-1. Run the official SOMA Scene Preview independently. Confirm hardware requirements and local throughput before choosing local inference or Modal.
-2. Record one character running, vaulting the wall, and ducking under the ceiling. Reuse the upstream primitives and rig conventions where possible.
-3. Establish unit, axis, joint, and timing conversion. Play the output on one real skeleton in the browser.
+1. Done 2026-10-30: run the upstream runtime headlessly on Modal, using the character code behind Scene Preview. Local throughput on the RTX 3050 Ti is unmeasured.
+2. Done 2026-10-30: record one character running, leaping the wall, and ducking under the bar. Results are in `MOTIONBRICKS.md`.
+3. Next: establish unit, axis, joint, and timing conversion. Play the output on one real skeleton in the browser.
 4. Replace one procedural runner with generated motion. Do not also advance its root independently, which would apply movement twice.
 5. Check clearance and planted feet against course geometry. Let actual motion completion determine obstacle exit time.
-6. Measure one runner, then two, then eight. Decide between live generation and recorded motion playback from those measurements.
+6. Done 2026-10-30: measure one runner, then two, then eight. Use recorded motion playback.
 
-The jump section is a visual placeholder. Validate an appropriate primitive or replace it with another demonstrated interaction before treating it as a supported MotionBricks action.
+The course's gap has no matching primitive. Upstream's jumps cross a box and a wall, so make the jump section a solid obstacle or validate a gap crossing before treating it as supported.
 
 ## Make it a race
 
