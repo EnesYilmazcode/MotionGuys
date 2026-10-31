@@ -4,35 +4,28 @@ Repository name: `MotionGuys`
 
 GitHub description: `MotionBricks characters race through an obstacle course`
 
-Eight autonomous runners in a colorful obstacle race. The camera watches them compete. Start with a single course and make the body movement worth watching.
+Eight generated runners on courses that can actually beat them. MotionBricks supplies body motion. This project supplies the world, the rules, and the failures.
 
-## Skeleton, implemented
+## Done
 
-- Three.js browser preview with eight colored runners.
-- Seeded fixed-step race, standings, pause, restart, and orbit camera.
-- A course with explicit run, vault, duck, and jump sections.
-- Motion provider types and an explicit unconnected MotionBricks adapter.
-- README in the Fly2048 and JevRubiksCube format.
+- Headless MotionBricks on Modal, with clearance and timing measurements in `MOTIONBRICKS.md`.
+- An eight-runner race with fake doors, two sweepers, and fake tiles.
+- Failures decided by generated joints against course geometry, with a scripted tumble and a generated get-up.
+- A browser replay of recorded races on an original mannequin.
 
-## First real motion milestone
+## Next: Spleef
 
-1. Done 2026-10-30: run the upstream runtime headlessly on Modal, using the character code behind Scene Preview. Local throughput on the RTX 3050 Ti is unmeasured.
-2. Done 2026-10-30: record one character running, leaping the wall, and ducking under the bar. Results are in `MOTIONBRICKS.md`.
-3. Next: establish unit, axis, joint, and timing conversion. Play the output on one real skeleton in the browser.
-4. Replace one procedural runner with generated motion. Do not also advance its root independently, which would apply movement twice.
-5. Check clearance and planted feet against course geometry. Let actual motion completion determine obstacle exit time.
-6. Done 2026-10-30: measure one runner, then two, then eight. Use recorded motion playback.
+Eight runners on a floor that falls away where they step, last one standing wins. It suits MotionBricks because failure needs no explanation and most of the skill is footwork.
 
-The course's gap has no matching primitive. Upstream's jumps cross a box and a wall, so make the jump section a solid obstacle or validate a gap crossing before treating it as supported.
+1. Size tiles from the measured jump. `jump_0_75m` clears about 0.6 m, so runners cannot jump a normal missing tile. They route around holes, unless a longer authored jump proves itself.
+2. Test sharp turns at running speed, which set the smallest usable tile.
+3. Stack floors so a fall lands on the layer below, and the bottom layer eliminates.
+4. Try different SOMA body shapes and check for foot sliding before promising them.
 
-## Make it a race
+## Later
 
-Move beyond seeded speed differences: obstacle timing, alternate routes, stumbles and checkpoint recovery. Add collision handling and clear rules for falls. Measure which behaviors come from the controller, generated motion, and physics.
-
-## Make the video
-
-Save the seed, controller decisions, model/version information, generated poses, and finish events. Replay those records with spectator camera cuts. Only then add a real hero GIF and measured results to the README.
+Saved camera cuts for a real video, runner collisions, and physics for falls in place of the scripted tumble.
 
 ## Scope
 
-One course, eight runners, a spectator camera. Online networking, accounts, asset generation, and a level editor can wait.
+Original geometry and characters only, no ripped game assets. Online networking, accounts, and a level editor can wait.

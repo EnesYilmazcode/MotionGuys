@@ -8,12 +8,16 @@ MotionBricks fills motion between recent poses and target poses. It does not sup
 
 ## Current boundary
 
-`src/motion/provider.ts` defines this project's contract. It is not an existing NVIDIA HTTP endpoint or upstream wire format. `MotionBricksProvider.generate()` deliberately throws until integration is implemented. The browser preview does not call it.
+`scripts/modal_race.py` runs the upstream character code headlessly and owns everything else. The browser never calls the model. It replays recorded joint positions.
 
-- Input: runner identity, desired action, world position, facing, speed, and recent pose frames.
-- Output: timed skeletal frames for that runner.
-- Project world: meters, Y up, forward along positive Z. Joint rotations use quaternion XYZW.
-- Joint naming, local versus world joint coordinates, timestamps, upstream axes, and rig retargeting still need to be specified from real output.
+- Race world: meters, Z up, forward along positive X. The browser maps this to Three.js as `(y, z, x)`.
+- A recording is hips as float32 meters, then 20 joints as int16 millimeters from the hips, for each frame and runner.
+
+Lessons from driving the runtime directly:
+
+- Create a new Smart Primitive per action. `align_sequence_pivot` clamps to limits around a primitive's first placement, so reusing one drags the runner back to that spot.
+- The model only sees poses. Writing a tumble into `current_pose` and recording it is enough for the next generation to start from the floor.
+- Discard frames before the runner is moving and fail the run if a clip plays. Idle clips are sample motions under an evaluation-only license.
 
 ## First headless run
 
