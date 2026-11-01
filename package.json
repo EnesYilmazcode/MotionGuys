@@ -2,7 +2,7 @@
   "name": "motion-guys",
   "version": "0.1.0",
   "private": true,
-  "description": "MotionBricks characters race through an obstacle course",
+  "description": "MotionBricks robots on vanishing hexagons above a pool of slime",
   "type": "module",
   "engines": { "node": ">=22.14.0" },
   "scripts": {

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Humanoid robots driven by NVIDIA MotionBricks on floors of vanishing hexagons above a pool of slime" />
+    <title>MotionGuys: Hex-A-Bots</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=block" rel="stylesheet" />
+  </head>
+  <body>
+    <main id="stage" aria-label="Eight robots on vanishing hexagon floors">
+      <div id="mode" class="tag">LAST BOT STANDING!</div>
+      <div id="out" class="tag"></div>
+      <ol id="feed" aria-live="polite"></ol>
+      <aside id="tiles" aria-label="Tiles each robot has used"><h2>TILES USED</h2><ol id="tile-list"></ol></aside>
+      <div id="big"></div>
+      <div id="banner"><b>HEX-A-BOTS</b><span>Be the last robot standing above the slime!</span></div>
+      <div id="stamp"><b>ELIMINATED</b><span id="stamp-name"></span></div>
+      <div id="win"><b>WINNER!</b><span id="win-name"></span></div>
+      <div id="bar">
+        <div id="chips"></div>
+        <button id="wide">Wide</button><button id="pause">Pause</button><button id="again">Again</button>
+      </div>
+    </main>
+    <script type="module" src="/src/hex.ts"></script>
+  </body>
+</html>
