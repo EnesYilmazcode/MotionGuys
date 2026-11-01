@@ -13,9 +13,13 @@ Eight generated runners on courses that can actually beat them. MotionBricks sup
 - Failures decided by generated joints against course geometry, with a scripted tumble and a generated get-up.
 - A browser replay of recorded races on an original mannequin.
 
+## Done since
+
+- Hex-A-Bots: an arena rebuilt from footage, with real robot meshes. See `HEXAGONS.md`.
+
 ## Next: a slower, tenser final
 
-Runners now leap only at gaps, on fewer and bigger tiles. Rounds still end in about 20 s because everyone runs nonstop. Next:
+Rounds now last about 70 s. Next:
 
 1. Slow the runners down, and test whether the leap still works from a slower approach.
 2. Reduce foot sliding on turns, which a slow close-up will make obvious.
@@ -29,4 +33,4 @@ Saved camera cuts for a real video, runner collisions, and physics for falls in 
 
 ## Scope
 
-Original geometry and characters only, no ripped game assets. Online networking, accounts, and a level editor can wait.
+Original geometry, no ripped game assets. Robot models only under licenses that allow redistribution, credited in `CREDITS.md`. Online networking, accounts, and a level editor can wait.

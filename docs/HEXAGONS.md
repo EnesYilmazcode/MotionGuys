@@ -32,7 +32,7 @@ Footage studied, not stored in this repo: two no-commentary rounds on YouTube, `
 
 ## Changed on purpose
 
-- **The timer is 0.9 s, not 0.43 s.** In the footage a character crosses a tile in about 0.33 s, so a tile lasts 1.3 crossings. MotionBricks runners top out near 3.3 m/s, so crossing takes about 0.7 s here. At a literal 0.43 s, runners fell through their own tiles and all eight were out in 25 s. Keeping the ratio gave rounds of 39 s to 55 s with the hand-written policy. With the trained network rounds run 57 s to 83 s.
+- **The timer is 0.9 s, not 0.43 s.** In the footage a character crosses a tile in about 0.33 s, so a tile lasts 1.3 crossings. MotionBricks runners top out near 3.3 m/s, so crossing takes about 0.7 s here. At a literal 0.43 s, runners fell through their own tiles and all eight were out in 25 s. Keeping the ratio gave rounds of 39 s to 55 s with the hand-written policy. With the trained network rounds run 61 s to 89 s.
 - **Tiles are 2.4 m corner to corner, not 3.2 m.** These bodies are tall and thin, not short and round, and slower, so a smaller tile keeps the same rhythm.
 - **Eight players, not twenty,** with floors to match, like the game's smaller variant.
 - **Falls look different.** The game's characters land on their feet. Here a fall is a MuJoCo ragdoll and a generated get-up, because recovery is the point of using MotionBricks.

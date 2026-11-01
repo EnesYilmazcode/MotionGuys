@@ -1,10 +1,10 @@
 <h1 align="center">MotionGuys</h1>
 
 <p align="center"><b>MotionBricks-powered humanoids in a Fall Guys-inspired survival arena.</b><br>
-A trained policy chooses the route and pace, NVIDIA MotionBricks generates the movement, and MuJoCo simulates knockdowns and falls.</p>
+A trained policy chooses the route, the pace, and when to leap, NVIDIA MotionBricks generates the movement, and MuJoCo simulates knockdowns and falls.</p>
 
 <p align="center">
-  <img src="media/hex-round.gif" width="640" alt="Humanoid robots run and tumble on a honeycomb of hexagons that whiten and vanish, above floors of blue and purple and a pool of pink slime">
+  <img src="media/hex-leap-round.gif" width="640" alt="Humanoid robots run, leap, and tumble on a honeycomb of hexagons that whiten and vanish, above floors of blue and purple and a pool of pink slime">
 </p>
 
 MotionGuys has grown from an obstacle race into **Hex-A-Bots**: eight simulated humanoids competing on six floors of disappearing hexagons above pink slime. It combines learned decisions, generated motion, physical falls, and a browser spectator view with robot tracking, a live tile counter, crowns, and confetti.
@@ -25,9 +25,9 @@ The lineup is Optimus, Figure, G1, H1, Apollo, Atlas, T1, and Petman. They share
 
 <table>
   <tr>
-    <td><img src="media/hex-rush.gif" alt="Eight robots rush the top floor and tiles whiten and vanish under them"></td>
-    <td><img src="media/hex-eliminated.gif" alt="An ELIMINATED banner appears as a robot falls into the slime while T1 keeps running on the purple floor"></td>
-    <td><img src="media/hex-winner.gif" alt="H1 wins on the last blue floor, wearing the crown under falling confetti"></td>
+    <td><img src="media/hex-leap-rush.gif" alt="Eight robots rush the top floor and tiles whiten and vanish under them"></td>
+    <td><img src="media/hex-leap-eliminated.gif" alt="An ELIMINATED banner appears as a robot falls into the slime while G1 keeps running on the purple floor"></td>
+    <td><img src="media/hex-leap-winner.gif" alt="Atlas wins on the last blue floor, wearing the crown under falling confetti"></td>
   </tr>
   <tr>
     <td align="center">The rush</td>
@@ -38,38 +38,49 @@ The lineup is Optimus, Figure, G1, H1, Apollo, Atlas, T1, and Petman. They share
 
 | Measure, over the 12 rounds in `public/hex/` | Value |
 |---|---:|
-| Time to a winner, counting the 3 s countdown | 57.3 s to 83.0 s |
-| Tiles touched | 5,559 |
-| Physics falls | 960 |
-| Knockdowns by another robot | 9 |
-| Leaps | 0 |
-| Generated get-ups | 763, median 1.07 s, slowest 2.17 s |
-| Wins | Optimus 5, Petman 2, one each for T1, G1, Atlas, H1, and Apollo, Figure 0 |
+| Time to a winner, counting the 3 s countdown | 61.4 s to 88.9 s |
+| Tiles touched | 6,784 |
+| Physics falls | 620 |
+| Knockdowns by another robot | 99 |
+| Leaps attempted / landed on floor | 943 / 839 |
+| Generated get-ups | 604, median 1.03 s, slowest 2.23 s |
+| Wins | Atlas 3, Apollo 2, T1 2, G1 2, one each for H1, Petman, and Optimus, Figure 0 |
 
 Wins say nothing about real hardware. Every robot shares one skeleton and one network, and differs only in personality and mass. Motion is not retargeted to each body either.
 
 ### Is the trained brain better?
 
-A separate local evaluation gave four randomly selected robots the network and four the hand-written policy in each of 24 recorded physics rounds. The network won **22 of 24 rounds**, against an even-match baseline of 12 wins.
+A separate local evaluation gave four randomly selected robots the network and four the hand-written policy in each of 24 recorded physics rounds. The network won **23 of 24 rounds**, against an even-match baseline of 12 wins.
 
-| Local evaluation, seeds 101-124 in `runs/hex/` | Network | Hand-written policy |
+| Local evaluation, seeds 101-124 in `runs/eval_calm/` | Network | Hand-written policy |
 |---|---:|---:|
-| Wins | 22 | 2 |
-| Mean survival time | 55.0 s | 44.9 s |
-| Tiles touched per second alive | 0.84 | 0.90 |
-| Successful leaps / attempts | 687 / 851 | 593 / 732 |
+| Wins | 23 | 1 |
+| Mean survival time | 65.2 s | 41.3 s |
+| Tiles touched per second alive | 1.25 | 1.07 |
+| Successful leaps / attempts | 945 / 1,037 | 527 / 612 |
 
-These evaluation recordings are local experiment outputs, separate from the twelve public showcase rounds, and are not bundled in the repository. They include leaps; the policy used in the public recordings never leaps. The result shows progress in this experiment, rather than a general benchmark of MotionBricks or real robots. Recheck a new experiment with `scripts/check_brain.py`.
+These evaluation recordings are local experiment outputs, separate from the twelve public showcase rounds, and are not bundled in the repository. This table is for the earlier `calm` brain, and the new brain needs its own test. The network lasts longer but is not thriftier: it burns tiles faster per second alive. The result shows progress in this experiment, rather than a general benchmark of MotionBricks or real robots. Recheck a new experiment with `scripts/check_brain.py`.
 
-Training uses self-play in a fast simulation in `scripts/hex_brain.py`, with one shared network and a personality input per robot. The training loop is in `scripts/modal_brain.py`. The simplified training world treats robots as dots; the recorded rounds expose the steering delays, rim catches, and recovery times it does not model.
+Training uses self-play in a fast simulation in `scripts/hex_brain.py`, with one shared network and a personality input per robot. The training loop is in `scripts/modal_brain.py`. The training world treats robots as dots, but its numbers are measured from real motion by `scripts/modal_turn.py` and the recorded rounds: a command takes about 0.3 s to show and a body turns at about 260 degrees per second, a foot with no tile under it is a fall, a leap travels 3.9 m to 6.8 m, and a landing runs on for about 4 m. Before that calibration a robot lasted 14 s on foot in training and 2.6 s in real rounds, so the network was practicing an easier game than the one it played.
+
+### When robots leap
+
+The twelve public rounds and the numbers above come from an earlier brain, `calm`. It leaps too much and too early: about 79 leaps per round, 13 of them in the first 8 s, and 37% of landings end in a fall within 2 s. Only 19% of its leaps had the way ahead blocked by other tiles, because a bug counted the tile a robot stands on as blocking the path. `scripts/check_leap_value.py` prints these numbers.
+
+The code here has already moved on, and a new brain is training on it:
+
+- A leap is legal only when straight ahead and a sector to either side all break within 2.5 m, not counting the tile underfoot.
+- A leap earns reward only if the robot is still on its feet 2 s after landing, and falling within 2 s of landing costs reward.
+- A robot that drops through a hole keeps running and lands on its feet on the next floor. MuJoCo handles knockdowns and the last plunge into the slime. The public rounds still show the older behavior, a ragdoll and a get-up after every drop.
 
 The arena is rebuilt from real gameplay footage: tile shape, timing, floor colors, rails, and slime. [docs/HEXAGONS.md](docs/HEXAGONS.md) lists what was measured, what was inferred, and what changed on purpose. Robots are cut into one rigid part per bone by `scripts/build_robots.py` and stretched between recorded joints, with no rigging. Model authors and licenses are in [CREDITS.md](CREDITS.md).
 
 Known limits:
 
 - **Running is not physics.** A running robot follows MotionBricks exactly and only turns into a physical body once it is hit or falls, so it cannot stumble and catch itself.
-- **Robots fall a lot,** about 10 times per robot per round, more than the five drops the floors require. A body often catches a tile rim and lands on the floor it just left.
-- **Feet slide.** About 5.4 m/s at the 95th percentile. Slower gaits slide more on the model's own, measured at about 6.5 m/s below 3 m/s and about 0.5 m/s at a full run.
+- **Robots still fall a lot,** about 6.5 times per robot per round, down from 10, against the five drops the floors require. About a third of falls come within 1 s of landing a leap, because a body runs on after touching down and cannot turn in time.
+- **Half the arena goes unused.** Rounds end with about 50% of tiles touched.
+- **Feet slide.** About 5.3 m/s at the 95th percentile. Slower gaits slide more on the model's own, measured at about 6.5 m/s below 3 m/s and about 0.5 m/s at a full run.
 - **Limbs pass through their own body,** because a limp robot does not collide with itself.
 - **Waiting robots shift their weight** in the browser, a drawn effect, because upstream idle clips cannot be recorded.
 - **Some winners do not survive.** In 3 of the 12 rounds the winner was already falling and goes into the slime last.
@@ -77,11 +88,11 @@ Known limits:
 
 ### What to improve next
 
-The movement is good enough for now. The weak part is how little the robots understand the map: they often fall with good floor right in front of them. Across the 960 falls in the 12 public rounds (`scripts/check_falls.py`), an untouched tile lay ahead within 2.1 m, about one tile over, 65% of the time, and within 3 m 87% of the time. The robot had been told to sprint in 82% of them. Those numbers show an option existed at the moment of the fall, not that every fall could have been saved.
+The movement is good enough for now. The weak part is still how robots read the map. Across the 543 hole and edge falls in the 12 public rounds (`scripts/check_falls.py`), an untouched tile lay ahead within 2.1 m, about one tile over, 40% of the time, and within 3 m 77% of the time, down from 65% and 87% before calibration. The robot had been told to sprint in 66% of them. Those numbers show an option existed at the moment of the fall, not that every fall could have been saved.
 
-1. **Bring back leaps and dives, as saves.** The network can leap but never does, and dives were removed. Reward a jump only when it reaches floor that a run would not, so it is used to rescue a robot rather than for show.
+1. **Land better.** Train the network on where a landing really ends up, or generate a landing that absorbs more speed. Letting the current landing play longer did not help.
 2. **Plan a route.** Each robot reacts every 0.3 s to what is around it. A short search through the untouched tiles, a few steps ahead, would stop robots from running into dead ends and give the network a target instead of a direction.
-3. **Train on real motion.** The dots in training turn instantly and never catch a rim. Finishing training in the real rounds would teach the network how MotionBricks actually steers and how long a save takes.
+3. **Train on real motion.** Calibration closed most of the gap, but the dots still never catch a rim. Finishing training in the real rounds would close the rest.
 4. **Stand still.** Waiting on a tile is the smartest move in the game and the robots cannot make it. It needs idle motion that is licensed for this use, or a trained balance policy.
 5. **Physics while running.** A controller that tracks MotionBricks inside MuJoCo would let robots stumble, catch themselves, and shove each other properly.
 
@@ -90,8 +101,8 @@ The movement is good enough for now. The weak part is how little the robots unde
 1. **Brain.** Every 0.3 s a network looks at the tiles around a robot, how long its own tile has left, the floor below, and its nearest rivals, then picks a direction, a gait, and whether to leap.
 2. **Motion.** [MotionBricks](https://github.com/NVlabs/motionbricks) is a kinematic model trained on motion capture. Give it recent poses and target poses, and it generates the motion between them. It has no gravity, balance, or view of the course.
 3. **World.** The Python simulation owns the floors and rules. Every frame it tests the generated joints against them.
-4. **Physics.** Each robot also exists in one [MuJoCo](https://mujoco.org/) scene, with one capsule per bone and real tiles and rails. When a robot gets hit or loses its footing, the copy from MotionBricks stops and gravity and contact take over, holding the pose it was in, so bodies tumble between floors on their own.
-5. **Recovery.** Once a body comes to rest its pose goes back to MotionBricks, which generates the get-up from whatever crumpled position it is shown.
+4. **Physics.** Each robot also exists in one [MuJoCo](https://mujoco.org/) scene, with one capsule per bone and real tiles and rails. When a robot gets hit, or goes over the last edge into the slime, the copy from MotionBricks stops and gravity and contact take over, holding the pose it was in.
+5. **Recovery.** Once a knocked-down body comes to rest its pose goes back to MotionBricks, which generates the get-up from whatever crumpled position it is shown. A plain drop through a hole needs no recovery, because the robot lands on its feet.
 6. **Replay.** Joint positions and events are saved per round. The browser plays them back on the robot meshes, so a round looks the same on every machine and needs no GPU.
 
 ## System design
@@ -112,12 +123,18 @@ flowchart LR
   R --> V["Three.js replay"]
 ```
 
-In Hex-A-Bots, generated movement hands over to physics when support is lost or another body knocks a robot down. The public rounds contain no leaps.
+In Hex-A-Bots, generated movement hands over to physics when another body knocks a robot down or it goes over the last edge. Leaps are generated too, and a leap that comes down on nothing becomes a drop.
 
 ```mermaid
 stateDiagram-v2
   [*] --> Running
-  Running --> Falling: loses foot support or gets knocked down
+  Running --> Leaping: way ahead blocked
+  Leaping --> Running: lands on floor
+  Leaping --> Falling: lands on nothing
+  Running --> Dropping: loses foot support
+  Dropping --> Running: lands on its feet on a floor
+  Dropping --> Falling: nothing left but slime
+  Running --> Falling: gets knocked down
   Falling --> Resting: lands on a floor
   Resting --> Recovering: body settles
   Recovering --> Running: MotionBricks get-up completes
@@ -223,19 +240,21 @@ npm run preview         # serve dist/ locally; append /hex.html
 This optional path needs Python, a Modal account, and a trained policy on the shared `motionguys-cache` Modal volume. Python 3.12 matches the remote images. Install the local imports and authenticate:
 
 ```bash
-python -m pip install modal torch numpy mujoco==3.3.7
+python -m pip install modal modal-progress torch numpy mujoco==3.3.7
 modal setup
 ```
 
-Train first if the volume has no `brain/policy.pt`, then record. Training uses an A10; the recording image fetches the pinned upstream MotionBricks runtime and model assets and runs inference remotely.
+Train first if the volume has no `brain/policy_saves.pt`, then record. Training uses an A10 and takes about 50 minutes; the recording image fetches the pinned upstream MotionBricks runtime and model assets and runs inference remotely.
 
 ```bash
-modal run scripts/modal_brain.py --iterations 400
+modal run scripts/modal_brain.py --iterations 400 --tags saves
 modal run scripts/modal_hex.py --seeds 1,2,3
 python scripts/check_hex.py runs/hex
+python scripts/check_leaps.py runs/hex
+python scripts/check_leap_value.py runs/hex
 ```
 
-Training also saves `runs/brain/policy.pt` and `runs/brain/log.jsonl` locally. Recording writes paired `seed_N.json` metadata and `seed_N.bin` poses into `runs/hex/`. These outputs are ignored by Git. To watch a new round, copy both files into `public/hex/` and select its seed in the browser. Use a fresh seed number to keep the showcase recordings.
+Training also saves `runs/brain/policy_saves.pt` and `runs/brain/log_saves.jsonl` locally. Other tags in `scripts/modal_brain.py` train other reward settings, and `--policy` picks one when recording. `scripts/modal_turn.py` measures the real turning response the training sim copies. Recording writes paired `seed_N.json` metadata and `seed_N.bin` poses into `runs/hex/`. These outputs are ignored by Git. To watch a new round, copy both files into `public/hex/` and select its seed in the browser. Use a fresh seed number to keep the showcase recordings.
 
 To compare the policy against the script, record fresh rounds with `--brains half`, then score the same seed range. For example:
 
