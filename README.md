@@ -52,7 +52,7 @@ Wins say nothing about real hardware. Every robot shares one skeleton and one ne
 
 A separate local evaluation gave four randomly selected robots the network and four the hand-written policy in each of 24 recorded physics rounds. The network won **22 of 24 rounds**, against an even-match baseline of 12 wins.
 
-| Local evaluation, seeds 101?124 in `runs/hex/` | Network | Hand-written policy |
+| Local evaluation, seeds 101-124 in `runs/hex/` | Network | Hand-written policy |
 |---|---:|---:|
 | Wins | 22 | 2 |
 | Mean survival time | 55.0 s | 44.9 s |
@@ -186,28 +186,96 @@ The GIFs in Hex-A-Bots are cut from a real-time render of recorded round 7.
 
 ## Run it
 
+### Watch a recorded round
+
+Use Node.js 22.14 or newer. From the repository root:
+
 ```bash
-npm ci                  # Node.js 22.14 or newer
-npm run dev             # open the printed local URL, then hex.html
-npm run check           # check TypeScript
-npm test                # recording, event replay, and camera checks
-npm run build           # check and build the browser replay
-modal run scripts/modal_hex.py --seeds 1,2,3          # record hexagon rounds, into runs/hex/
-python scripts/check_hex.py                           # summarize them
-python scripts/build_robots.py <models dir>           # cut robot models, see CREDITS.md for sources
-modal run scripts/modal_render.py --seed 7            # render a real-time video with sound on Modal, after npm run build
-python scripts/check_brain.py --first 101 --last 124  # score rounds recorded with --brains half
-python scripts/check_falls.py                         # how close good floor was at each fall
-modal run scripts/modal_spleef.py --seeds 1,2,3       # record Spleef rounds, into runs/spleef/
-modal run scripts/modal_spleef.py --seconds 20        # a quick look, no winner needed
-modal run scripts/modal_leap.py                       # measure jump settings, into runs/
-modal run scripts/modal_race.py::main --seeds 1,2,3   # record races, into runs/races/
-python scripts/check_race.py 1 2 3                    # race progress and failures by runner
+npm ci
+npm run dev
 ```
 
-On `hex.html`, append `?seed=1` through `?seed=12`, or click a robot to follow it. Append `?seed=1` through `?seed=6` on `spleef.html`, or `?seed=1` through `?seed=3` on the race, to pick a recording. Drag to look around. On `spleef.html`, double click to go back to spectating.
+Open the printed local URL with **`/hex.html`** appended. It starts with round 7, the round shown in the GIFs. The root page (`/`) opens the original obstacle race.
 
-The replay needs no API keys or GPU. Recording needs a Modal account. A cold first run builds an image in about 4 minutes and a TensorRT plan in about 2.
+| Hex-A-Bots control | What it does |
+|---|---|
+| Robot name button | Follow that robot; click it again to return to automatic shots |
+| Wide | Toggle the wide arena view |
+| Pause / Resume | Stop or continue playback |
+| Again | Restart the recording |
+| `?seed=1` through `?seed=12` | Choose a recorded round |
+| `?seed=7&speed=0.5` | Watch round 7 at half speed |
+
+For the earlier modes, open `/spleef.html?seed=4` (seeds 1-6) or `/index.html?seed=1` (seeds 1-3). In Spleef, drag to look around and double-click to return to the spectator camera.
+
+Playback needs no API keys, model weights, or local inference GPU; it uses the recordings and processed robot models in `public/`.
+
+### Check the browser build
+
+```bash
+npm test                # recording, hexagon events, replay, and camera checks
+npm run build           # TypeScript check and production build of all three pages
+npm run preview         # serve dist/ locally; append /hex.html
+```
+
+### Train and record new hexagon rounds
+
+This optional path needs Python, a Modal account, and a trained policy on the shared `motionguys-cache` Modal volume. Python 3.12 matches the remote images. Install the local imports and authenticate:
+
+```bash
+python -m pip install modal torch numpy mujoco==3.3.7
+modal setup
+```
+
+Train first if the volume has no `brain/policy.pt`, then record. Training uses an A10; the recording image fetches the pinned upstream MotionBricks runtime and model assets and runs inference remotely.
+
+```bash
+modal run scripts/modal_brain.py --iterations 400
+modal run scripts/modal_hex.py --seeds 1,2,3
+python scripts/check_hex.py runs/hex
+```
+
+Training also saves `runs/brain/policy.pt` and `runs/brain/log.jsonl` locally. Recording writes paired `seed_N.json` metadata and `seed_N.bin` poses into `runs/hex/`. These outputs are ignored by Git. To watch a new round, copy both files into `public/hex/` and select its seed in the browser. Use a fresh seed number to keep the showcase recordings.
+
+To compare the policy against the script, record fresh rounds with `--brains half`, then score the same seed range. For example:
+
+```bash
+modal run scripts/modal_hex.py --seeds 201,202,203 --brains half
+python scripts/check_brain.py --first 201 --last 203
+```
+
+Three rounds are a smoke check; the evaluation above used 24. `python scripts/check_hex.py public/hex` reproduces the showcase summary, and `python scripts/check_falls.py` checks nearby untouched tiles at each showcase fall.
+
+### Render video and rebuild robot meshes
+
+The README GIFs come from recorded round 7. To render a video with event-based sound, install the renderer's local imports, build the replay, and render on Modal. Its remote image installs Chromium and FFmpeg.
+
+```bash
+python -m pip install playwright modal-progress
+npm run build
+modal run scripts/modal_render.py --seed 7 --out renders/hex-bots.mp4
+```
+
+To rebuild processed robot meshes, download the source models listed in [CREDITS.md](CREDITS.md), arrange them as expected by `scripts/build_robots.py`, and run:
+
+```bash
+python -m pip install trimesh pillow
+python scripts/build_robots.py <models-dir>
+```
+
+The source models are separate downloads; the processed meshes are in `public/robots/`.
+
+### Earlier simulations
+
+```bash
+modal run scripts/modal_spleef.py --seeds 1,2,3
+modal run scripts/modal_spleef.py --seconds 20
+modal run scripts/modal_leap.py
+modal run scripts/modal_race.py::main --seeds 1,2,3
+python scripts/check_race.py 1 2 3
+```
+
+Spleef recordings go into `runs/spleef/`, race recordings into `runs/races/`, and leap measurements into `runs/`. Cold image builds and TensorRT compilation add setup time before the first motion recording.
 
 | Folder | What's in it |
 |---|---|
