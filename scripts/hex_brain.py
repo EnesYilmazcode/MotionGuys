@@ -32,20 +32,32 @@ REACH = 11
 GRID = 2 * REACH + 1
 
 # Measured on the real model: the command strength for each gait and the speed it holds on a straight line.
-GAIT_STRENGTH = (0.6, 0.7, 1.0)
-GAIT_SPEED = (2.65, 3.13, 4.47)
+# Any strength from 0.05 to 0.4 settles at the same slow walk, with no sample clip (scripts/modal_stop.py).
+GAIT_STRENGTH = (0.2, 0.5, 0.7, 1.0)
+GAIT_SPEED = (1.62, 2.29, 3.13, 4.47)
 GAIT_REACTION_SECONDS = 0.25
+SLOWING_SECONDS = 0.7
+PICK_UP_SECONDS = 1.0
+PICK_UP_BELOW = 2.0
 GAITS = len(GAIT_SPEED)
 STRIDE_METERS = 0.9
 FOOT_SIDE = 0.2
 FOOT_REACH = (-0.1, 0.4)
 TURN_RADIANS_PER_SECOND = math.radians(260)
 LEAP_DISTANCE = (2.7, 0.55, 1.9, 3.5)  # A hop of about one tile. Mean, spread, least, most, as measured over 100 real hops.
-LEAP_SECONDS = 1.2
-LEAP_WINDUP = 0.4
+LEAP_SECONDS = 1.1
+LEAP_WINDUP = 0.6
+# Measured by scripts/modal_hop.py with place 1.6, stretch 0.6: degrees away from where the body faces, hop distance, and how far short of the aim it goes.
+HOP_ANGLES = (0.0, 45.0, 90.0, 135.0)
+HOP_METERS = (2.42, 2.25, 2.15, 1.45)
+# Real hops from a standstill spread this much, in meters and degrees, measured over real rounds. Training on less taught jumps too precise to land.
+HOP_METERS_SPREAD = 0.45
+HOP_AIM_SPREAD_DEGREES = 14.0
+HOP_DRIFT_DEGREES = (1.4, 10.4, 13.4, 23.3)
+HOP_MAX_ANGLE = 100.0
 LEAP_COOLDOWN = 1.0
 # Measured over 376 real landings: a body touches down near 5.9 m/s, runs on about 4 m, and is down to 2 m/s a second later.
-LAND_SPEED = 5.9
+LAND_SPEED = 3.5
 LAND_SLOW_SPEED = 2.0
 LAND_CARRY_SECONDS = 1.0
 LAND_NO_STEER_SECONDS = 0.5
@@ -65,8 +77,8 @@ PLAIN_LEAP_COST = 0.15
 
 RUN, LEAP, STUN, DROP, OUT = range(5)
 HEADINGS = 12
-MOVES = 2
-MOVE_RUN, MOVE_LEAP = range(MOVES)
+MOVES = 3
+MOVE_RUN, MOVE_LEAP, MOVE_HOLD = range(MOVES)
 
 NEAR_SIDE, NEAR_STEP = 13, 1.0
 CLOSE_SIDE, CLOSE_STEP = 9, 0.5
@@ -81,7 +93,7 @@ BLOCKED_LOOKS = (1.0, 1.5, 2.0)
 LANDING_LOOKS = (2.0, 2.4, 2.8, 3.2, 3.6)
 # A landing keeps going, so what lies beyond it decides whether the leap was any good.
 RUNOUT_LOOKS = (4.0, 5.0, 6.0, 7.0)
-OBS_SIZE = NEAR_SIDE**2 + CLOSE_SIDE**2 + BELOW_SIDE**2 + RIVALS_SEEN * 4 + 14 + PERSONALITY_SIZE + HEADINGS * 4
+OBS_SIZE = NEAR_SIDE**2 + CLOSE_SIDE**2 + BELOW_SIDE**2 + RIVALS_SEEN * 4 + 15 + PERSONALITY_SIZE + HEADINGS * 4
 
 # Dread of falling, thrift with tiles, aggression toward rivals. Roster order. Mass-class robots lean into contact.
 PERSONALITIES = (
@@ -94,6 +106,13 @@ PERSONALITIES = (
     (0.6, 1.0, 0.1),  # T1, a miser
     (0.3, 0.4, 0.9),  # Petman, heavy and pushy
 )
+
+
+def small_floor(count):
+    """The `count` cells nearest a point just off centre, so any tile count makes one compact board."""
+    cells = [(q, r) for q in range(-6, 7) for r in range(-6, 7)]
+    place = lambda c: (HEX_WIDTH * (c[0] + c[1] / 2) - 0.7, 1.5 * HEX_RADIUS * c[1] - 0.3)
+    return sorted(cells, key=lambda c: (round(math.hypot(*place(c)), 3), c))[:count]
 
 
 def grid_of_tiles(device, radii=FLOOR_RADII):
@@ -123,7 +142,8 @@ def cell_of(x, y):
 
 
 class Sim:
-    def __init__(self, envs, device="cpu", seed=0, save_bonus=SAVE_BONUS, plain_leap_cost=PLAIN_LEAP_COST, tile_cost=TILE_COST, strict_save=False, leap_cooldown=LEAP_COOLDOWN, land_fall_cost=0.0, leap_after=0.0, block_sectors=1, radii=FLOOR_RADII, touch_seconds=TOUCH_SECONDS, solo=False, leap_distance=LEAP_DISTANCE, land_speed=LAND_SPEED):
+    def __init__(self, envs, device="cpu", seed=0, save_bonus=SAVE_BONUS, plain_leap_cost=PLAIN_LEAP_COST, tile_cost=TILE_COST, strict_save=False, leap_cooldown=LEAP_COOLDOWN, land_fall_cost=0.0, leap_after=0.0, block_sectors=1, radii=FLOOR_RADII, touch_seconds=TOUCH_SECONDS, solo=False, leap_distance=LEAP_DISTANCE, land_speed=LAND_SPEED, solo_tiles=0, can_hold=False):
+        self.can_hold = can_hold
         self.touch_seconds, self.solo, self.leap_distance, self.land_speed = touch_seconds, solo, leap_distance, land_speed
         self.leap_after, self.block_sectors = leap_after, block_sectors
         self.strict_save, self.leap_cooldown, self.land_fall_cost = strict_save, leap_cooldown, land_fall_cost
@@ -131,6 +151,10 @@ class Sim:
         self.save_bonus, self.plain_leap_cost, self.tile_cost = save_bonus, plain_leap_cost, tile_cost
         self.gen = torch.Generator(device=device).manual_seed(seed)
         self.exists = grid_of_tiles(device, radii)
+        if solo_tiles:
+            self.exists[:] = False
+            for q, r in small_floor(solo_tiles):
+                self.exists[0, q + REACH, r + REACH] = True
         # One robot alone starts on a random tile of the top floor, and any fall ends its run.
         cells = self.exists[0].nonzero()
         self.start_x = HEX_WIDTH * ((cells[:, 0] - REACH).float() + (cells[:, 1] - REACH).float() / 2)
@@ -145,6 +169,7 @@ class Sim:
         self.move_angle, self.aim, self.previous_command = zeros(), zeros(), zeros()
         self.foot_x, self.foot_y, self.leap_speed = zeros(), zeros(), zeros()
         self.leap_gap = torch.zeros(shape, dtype=torch.bool, device=device)
+        self.holding = torch.zeros(shape, dtype=torch.bool, device=device)
         self.landed_at = torch.full(shape, -math.inf, device=device)
         self.save_due = torch.full(shape, math.inf, device=device)
         self.foot_side = torch.ones(shape, device=device)
@@ -174,6 +199,7 @@ class Sim:
         self.previous_command[mask] = around + math.pi
         self.foot_x[mask], self.foot_y[mask] = self.x[mask], self.y[mask]
         self.leap_gap[mask] = False
+        self.holding[mask] = False
         self.landed_at[mask] = -math.inf
         self.save_due[mask] = math.inf
         self.speed[mask] = 0.0
@@ -232,6 +258,10 @@ class Sim:
         # A leap that ends in a fall right away saved nothing.
         now = self.time[:, None].expand_as(self.x)
         self.reward -= (mask & (now - self.landed_at < SAVE_HOLD_SECONDS)) * self.land_fall_cost
+        if self.solo and mask.any():
+            first = mask & (self.mode != DROP)
+            self.stats["solo_seconds"] = self.stats.get("solo_seconds", 0.0) + float(now[first].sum())
+            self.stats["solo_runs"] = self.stats.get("solo_runs", 0.0) + float(first.sum())
         self.save_due[mask] = math.inf
         self.mode[mask] = DROP
         self.timer[mask] = DROP_SECONDS
@@ -261,19 +291,30 @@ class Sim:
         for name, gait in (("slow", 0), ("mid", 1), ("fast", 2)):
             self.stats[name] += float((acting & (gait_action == gait)).sum())
         now = self.time[:, None].expand_as(self.x)
-        straight = turn.abs() < 2 * math.pi / HEADINGS * 1.5
-        leap = acting & (move_action == MOVE_LEAP) & (now >= self.leap_ready) & straight & (self.speed > 1.5)
+        off = torch.remainder(self.heading - self.move_angle + math.pi, 2 * math.pi) - math.pi
+        off_degrees = off.abs() * 180 / math.pi
+        straight = off_degrees <= HOP_MAX_ANGLE
+        was_holding = self.holding
+        self.holding = acting & (move_action == MOVE_HOLD) & self.can_hold
+        leap = acting & (move_action == MOVE_LEAP) & (now >= self.leap_ready) & straight & ((self.speed > 1.5) | was_holding)
         # Legal only with no way forward on foot, so a robot can never leap across open floor.
         if self.strict_save:
             leap = leap & self.way_is_blocked() & (now >= self.leap_after)
         self.mode[leap] = LEAP
+        self.holding = self.holding & ~leap
         self.timer[leap] = LEAP_SECONDS
-        # A leap goes where it was pointed, without the usual turning lag.
-        self.move_angle = torch.where(leap, self.heading, self.move_angle)
+        # A hop goes short of its aim and falls short of a straight one, the further it is from where the body faces.
+        angles = torch.tensor(HOP_ANGLES, device=self.device)
+        slot = torch.bucketize(off_degrees, angles).clamp(1, len(HOP_ANGLES) - 1)
+        share = ((off_degrees - angles[slot - 1]) / (angles[slot] - angles[slot - 1])).clamp(0, 1)
+        lerp = lambda table: (lambda t: t[slot - 1] + (t[slot] - t[slot - 1]) * share)(torch.tensor(table, device=self.device))
+        drift = lerp(HOP_DRIFT_DEGREES) * math.pi / 180
+        aim_noise = torch.randn(self.x.shape, device=self.device, generator=self.gen) * math.radians(HOP_AIM_SPREAD_DEGREES)
+        launch = self.move_angle + off.sign() * (off.abs() - drift).clamp(min=0.0) + aim_noise
+        self.move_angle = torch.where(leap, launch, self.move_angle)
         self.aim = torch.where(leap, self.heading, self.aim)
         self.previous_command = torch.where(leap, self.heading, self.previous_command)
-        mean, spread, least, most = self.leap_distance
-        distance = (mean + spread * torch.randn(self.x.shape, device=self.device, generator=self.gen)).clamp(least, most)
+        distance = lerp(HOP_METERS) + HOP_METERS_SPREAD * torch.randn(self.x.shape, device=self.device, generator=self.gen)
         self.leap_speed = torch.where(leap, distance / LEAP_SECONDS, self.leap_speed)
         gap = self.way_is_blocked() if self.strict_save else self.path_is_broken(GAP_LOOKS)
         self.leap_gap = torch.where(leap, gap, self.leap_gap)
@@ -323,7 +364,11 @@ class Sim:
         self.move_angle = self.move_angle + torch.where(steering, miss.clamp(-limit, limit), torch.zeros_like(miss))
         slowed = 0.3 + 0.7 * ((1 + miss.cos()) / 2).sqrt()
         goal = run * self.target * self.pace * slowed
-        self.speed = self.speed + (goal - self.speed) * min(STEP / GAIT_REACTION_SECONDS, 1.0)
+        rising = goal > self.speed
+        # Measured: dropping to a slow walk takes a moment, and picking up from one takes longer still.
+        seconds = torch.where(rising & (self.speed < PICK_UP_BELOW), PICK_UP_SECONDS, torch.where(rising, GAIT_REACTION_SECONDS, SLOWING_SECONDS))
+        self.speed = self.speed + (goal - self.speed) * (STEP / seconds).clamp(max=1.0)
+        self.speed = torch.where(self.holding & run, torch.zeros_like(self.speed), self.speed)
         carried = self.land_speed + (LAND_SLOW_SPEED - self.land_speed) * (age / LAND_CARRY_SECONDS)
         self.speed = torch.where(run & (age < LAND_CARRY_SECONDS), carried, self.speed)
         speed = torch.where(leap, self.leap_speed, self.speed)
@@ -355,7 +400,7 @@ class Sim:
 
         # A foot lands every stride, a little ahead and to one side of the hips. Only a foot touches a tile.
         winding_up = leap & (self.timer > LEAP_SECONDS - LEAP_WINDUP)
-        footfall = (run | winding_up) & (now >= self.next_step)
+        footfall = (run | winding_up) & (now >= self.next_step) & ~self.holding
         cos, sin = self.move_angle.cos(), self.move_angle.sin()
         least, most = FOOT_REACH
         reach = least + (most - least) * self.rand(self.envs, AGENTS)
@@ -364,6 +409,8 @@ class Sim:
         self.foot_x = torch.where(footfall, foot_x, self.foot_x)
         self.foot_y = torch.where(footfall, foot_y, self.foot_y)
         self.touch(foot_x, foot_y, footfall & (now >= self.no_touch_until))
+        # A body standing on a tile burns it just the same, so no one can wait forever on a fresh one.
+        self.touch(self.foot_x, self.foot_y, run & self.holding & (now >= self.no_touch_until))
         pace = speed.clamp(min=1.5)
         self.next_step = torch.where(footfall, now + STRIDE_METERS / pace, self.next_step)
         self.foot_side = torch.where(footfall, -self.foot_side, self.foot_side)
@@ -501,6 +548,7 @@ class Sim:
             (now < self.no_touch_until).float(),
             (self.move_angle - self.heading).sin(),
             (self.move_angle - self.heading).cos(),
+            self.holding.float(),
             self.floor_left(self.layer),
             self.floor_left((self.layer + 1).clamp(max=LAYERS - 1)) * (self.layer < LAYERS - 1),
         ], dim=-1)
@@ -549,9 +597,7 @@ def scripted_action(sim, sight, noise):
     distances = (torch.arange(16, device=sim.device).float() + 1) * 0.5
     x = sim.x[..., None, None] + cos[..., None] * distances
     y = sim.y[..., None, None] + sin[..., None] * distances
-    solid, outside = sim.lookup(sim.solid, sim.layer[..., None, None], x, y)
-    touched, _ = sim.lookup(sim.touched_at, sim.layer[..., None, None], x, y)
-    safe = solid & ~outside & touched.isinf() & (distances <= sight[..., None, None])
+    safe = sim.safe_past_own_tile(sim.layer[..., None, None], x, y) & (distances <= sight[..., None, None])
     run = safe.float().cumprod(dim=-1).sum(dim=-1) * 0.5
     score = run + 1.5 * cos * sim.heading.cos()[..., None] + 1.5 * sin * sim.heading.sin()[..., None]
     score = score + noise[..., None] * torch.randn(score.shape, device=sim.device, generator=sim.gen)

@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path("public/hex")
-GAITS = ("walk", "jog", "sprint")
+GAITS = ("slow", "walk", "jog", "sprint")
 # One tile over, then roughly a leap's reach.
 REACHES = (2.1, 3.0)
 

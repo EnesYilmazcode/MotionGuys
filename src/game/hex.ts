@@ -96,7 +96,7 @@ export function actionShots(meta: HexMeta, shots: Shot[], lead = 0.7, hold = 3.5
   return [...free, ...action].sort((a, b) => a.start - b.start);
 }
 
-export const GAIT_NAMES = ['WALK', 'JOG', 'SPRINT'];
+export const GAIT_NAMES = ['SLOW', 'WALK', 'JOG', 'SPRINT'];
 
 /** How many tiles each robot has burned by a time, and the gait it is in. Replayed from the event log. */
 export function brainStateAt(meta: HexMeta, time: number) {

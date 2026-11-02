@@ -51,6 +51,23 @@ VARIANTS = {
     "hop": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 1.0, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1, "land_speed": 4.0},
     "hop2": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 1.0, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1, "land_speed": 4.0},
     "hopcold": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 1.0, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1, "land_speed": 4.0},
+    "tiny7": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 7, "can_hold": True},
+    "tiny10": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 10, "can_hold": True},
+    "tiny10b": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 10, "can_hold": True},
+    "tiny13": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 13, "can_hold": True},
+    "tiny19": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 19, "can_hold": True},
+    "tiny10walk": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 10},
+    "real7": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 7, "can_hold": True},
+    "real10": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 10, "can_hold": True},
+    "real10b": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 10, "can_hold": True},
+    "real13": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 13, "can_hold": True},
+    "real19": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 19, "can_hold": True},
+    "walk10": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 10},
+    "walk13": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 13},
+    "walk19": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 19},
+    "noisy10": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 10, "can_hold": True},
+    "noisy10b": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 10, "can_hold": True},
+    "noisy19": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 19, "can_hold": True},
     "gated1": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 2.0, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1},
 }
 
@@ -60,7 +77,7 @@ volume = modal.Volume.from_name("motionguys-cache", create_if_missing=True)
 CACHE = "/cache"
 
 
-WARM = {"hop": "solo55slow", "hop2": "solo55slow"}
+WARM = {}
 
 
 @torch.no_grad()
