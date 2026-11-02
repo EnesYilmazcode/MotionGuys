@@ -64,6 +64,20 @@ These evaluation recordings are local experiment outputs and are not bundled in 
 
 Training uses self-play in a fast simulation in `scripts/hex_brain.py`, with one shared network and a personality input per robot. The training loop is in `scripts/modal_brain.py`. The training world treats robots as dots, but its numbers are measured from real motion by `scripts/modal_turn.py` and the recorded rounds: a command takes about 0.3 s to show and a body turns at about 260 degrees per second, a foot with no tile under it is a fall, a leap travels 3.9 m to 6.8 m, and a landing runs on for about 4 m. Before that calibration a robot lasted 14 s on foot in training and 2.6 s in real rounds, so the network was practicing an easier game than the one it played.
 
+### The network
+
+The brain is a small multilayer perceptron, about 593,000 parameters, defined as `Policy` in `scripts/hex_brain.py`. Every robot runs the same weights.
+
+| | |
+|---|---|
+| Input | 377 numbers, rotated so "ahead" is the way the robot faces |
+| Body | 377 → 512 → 512 → 256, ReLU between layers |
+| Outputs | 12 headings, 4 gaits, 3 moves (run, leap, hold), and a value estimate |
+
+The 377 inputs are three tile grids around the robot (13 x 13 at 1 m spacing, 9 x 9 at 0.5 m up close, and 7 x 7 at 2.5 m on the floor below, each cell saying how long that tile has left), its 3 nearest rivals on the same floor, 15 numbers about itself (speed, position on its own tile, how long that tile has left, how much of the floor remains), its 3 personality values, and 4 checks for each of the 12 headings: how far a safe run goes, whether the way ahead breaks, whether a leap would land, and whether the ground past the landing holds.
+
+It is trained with PPO: 8 robots per round, 96 decisions per update, 3 passes over each batch, clip 0.2, discount 0.995, GAE 0.95, a learning rate starting at 3e-4, and an entropy bonus that shrinks over training. The `finalhold` brain ran 180 updates, about 142 million robot decisions, in roughly 25 minutes on one Modal A10.
+
 ### When robots hop
 
 The public rounds use the `finalhold` brain, whose weights are in `weights/`. It plays with short hops of about one tile, a 1.4 s tile timer, and a smaller board. A hop is legal only when straight ahead and a sector to either side all break within 2 m, not counting the tile underfoot, and never in the first 10 s of play. A hop earns reward only if the robot is still on its feet 2 s after landing. A robot that drops through a hole keeps running and lands on its feet on the next floor. MuJoCo handles knockdowns and the last plunge into the slime.
