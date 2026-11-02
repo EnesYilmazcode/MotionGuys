@@ -40,12 +40,27 @@ VARIANTS = {
     "saves": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 2.0, "land_fall_cost": 0.7},
     "saves2": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 2.0, "land_fall_cost": 0.7},
     "careful": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 2.0, "land_fall_cost": 1.5},
+    "gated": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 2.0, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 2},
+    "gated2": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 2.0, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 2},
+    "solo7": {"solo": True, "radii": (2.2, -1, -1, -1, -1, -1), "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_distance": (3.0, 0.5, 2.2, 3.8), "land_speed": 4.0},
+    "solo19": {"solo": True, "radii": (4.2, -1, -1, -1, -1, -1), "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_distance": (3.0, 0.5, 2.2, 3.8), "land_speed": 4.0},
+    "solo31": {"solo": True, "radii": (6.2, -1, -1, -1, -1, -1), "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_distance": (3.0, 0.5, 2.2, 3.8), "land_speed": 4.0},
+    "solo55": {"solo": True, "radii": (8.3, -1, -1, -1, -1, -1), "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_distance": (3.0, 0.5, 2.2, 3.8), "land_speed": 4.0},
+    "solo19slow": {"solo": True, "radii": (4.2, -1, -1, -1, -1, -1), "touch_seconds": 1.4, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_distance": (3.0, 0.5, 2.2, 3.8), "land_speed": 4.0},
+    "solo55slow": {"solo": True, "radii": (8.3, -1, -1, -1, -1, -1), "touch_seconds": 1.4, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_distance": (3.0, 0.5, 2.2, 3.8), "land_speed": 4.0},
+    "hop": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 1.0, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1, "land_speed": 4.0},
+    "hop2": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 1.0, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1, "land_speed": 4.0},
+    "hopcold": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 1.0, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1, "land_speed": 4.0},
+    "gated1": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 2.0, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1},
 }
 
 image = modal.Image.debian_slim(python_version="3.12").pip_install("torch", "numpy", "modal-progress").add_local_python_source("hex_brain")
 app = modal.App("motionguys-brain", image=image)
 volume = modal.Volume.from_name("motionguys-cache", create_if_missing=True)
 CACHE = "/cache"
+
+
+WARM = {"hop": "solo55slow", "hop2": "solo55slow"}
 
 
 @torch.no_grad()
@@ -94,6 +109,9 @@ def train(iterations: int, seed: int, tag: str) -> tuple[str, bytes, list[dict]]
     device = "cuda" if torch.cuda.is_available() else "cpu"
     sim = Sim(ENVS, device, seed=seed, **VARIANTS.get(tag, {}))
     policy = Policy().to(device)
+    # Warm start: tags in WARM begin from the network that learned to survive alone on a small floor.
+    if tag in WARM:
+        policy.load_state_dict(torch.load(f"{CACHE}/brain/policy_{WARM[tag]}.pt", map_location=device))
     optimizer = torch.optim.Adam(policy.parameters(), lr=LR, eps=1e-5)
     log = []
     started = time.perf_counter()

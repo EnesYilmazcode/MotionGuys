@@ -17,10 +17,11 @@ from torch import nn
 
 HEX_RADIUS = 1.2
 HEX_WIDTH = math.sqrt(3) * HEX_RADIUS
-FLOOR_RADII = (11.0, 12.5, 14.0, 15.5, 17.0, 18.5)
+FLOOR_RADII = (9.5, 11.0, 12.5, 14.0, 15.5, 17.0)
 LAYERS = len(FLOOR_RADII)
 LAYER_HEIGHT = 5.5
-TOUCH_SECONDS = 0.9
+# Alone on 19 tiles a trained robot used 91% of them at 1.4 s and 67% at 0.9 s, which left it no time to read the floor.
+TOUCH_SECONDS = 1.4
 PEDESTAL_RING = 8.2
 AGENTS = 8
 
@@ -39,7 +40,7 @@ STRIDE_METERS = 0.9
 FOOT_SIDE = 0.2
 FOOT_REACH = (-0.1, 0.4)
 TURN_RADIANS_PER_SECOND = math.radians(260)
-LEAP_DISTANCE = (5.2, 1.1, 3.8, 6.9)  # Mean, spread, least, most, as measured over 4,987 real leaps.
+LEAP_DISTANCE = (2.7, 0.55, 1.9, 3.5)  # A hop of about one tile. Mean, spread, least, most, as measured over 100 real hops.
 LEAP_SECONDS = 1.2
 LEAP_WINDUP = 0.4
 LEAP_COOLDOWN = 1.0
@@ -74,12 +75,12 @@ RIVALS_SEEN = 3
 PERSONALITY_SIZE = 3
 RUN_LOOKS = 16
 RUN_LOOK_STEP = 0.5
-GAP_LOOKS = (1.5, 2.0, 2.5, 3.0, 3.5)
+GAP_LOOKS = (1.0, 1.5, 2.0, 2.5)
 # A save means no way forward on foot: straight on and a sector to either side all break within this reach.
-BLOCKED_LOOKS = (1.0, 1.5, 2.0, 2.5)
-LANDING_LOOKS = (4.0, 4.6, 5.2, 5.8, 6.4)
+BLOCKED_LOOKS = (1.0, 1.5, 2.0)
+LANDING_LOOKS = (2.0, 2.4, 2.8, 3.2, 3.6)
 # A landing keeps going, so what lies beyond it decides whether the leap was any good.
-RUNOUT_LOOKS = (7.0, 8.0, 9.0, 10.0)
+RUNOUT_LOOKS = (4.0, 5.0, 6.0, 7.0)
 OBS_SIZE = NEAR_SIDE**2 + CLOSE_SIDE**2 + BELOW_SIDE**2 + RIVALS_SEEN * 4 + 14 + PERSONALITY_SIZE + HEADINGS * 4
 
 # Dread of falling, thrift with tiles, aggression toward rivals. Roster order. Mass-class robots lean into contact.
@@ -95,10 +96,10 @@ PERSONALITIES = (
 )
 
 
-def grid_of_tiles(device):
+def grid_of_tiles(device, radii=FLOOR_RADII):
     """Which honeycomb cells exist on each floor."""
     exists = torch.zeros(LAYERS, GRID, GRID, dtype=torch.bool, device=device)
-    for layer, radius in enumerate(FLOOR_RADII):
+    for layer, radius in enumerate(radii):
         for q in range(-REACH, REACH + 1):
             for r in range(-REACH, REACH + 1):
                 if math.hypot(HEX_WIDTH * (q + r / 2), 1.5 * HEX_RADIUS * r) <= radius:
@@ -122,12 +123,18 @@ def cell_of(x, y):
 
 
 class Sim:
-    def __init__(self, envs, device="cpu", seed=0, save_bonus=SAVE_BONUS, plain_leap_cost=PLAIN_LEAP_COST, tile_cost=TILE_COST, strict_save=False, leap_cooldown=LEAP_COOLDOWN, land_fall_cost=0.0):
+    def __init__(self, envs, device="cpu", seed=0, save_bonus=SAVE_BONUS, plain_leap_cost=PLAIN_LEAP_COST, tile_cost=TILE_COST, strict_save=False, leap_cooldown=LEAP_COOLDOWN, land_fall_cost=0.0, leap_after=0.0, block_sectors=1, radii=FLOOR_RADII, touch_seconds=TOUCH_SECONDS, solo=False, leap_distance=LEAP_DISTANCE, land_speed=LAND_SPEED):
+        self.touch_seconds, self.solo, self.leap_distance, self.land_speed = touch_seconds, solo, leap_distance, land_speed
+        self.leap_after, self.block_sectors = leap_after, block_sectors
         self.strict_save, self.leap_cooldown, self.land_fall_cost = strict_save, leap_cooldown, land_fall_cost
         self.envs, self.device = envs, device
         self.save_bonus, self.plain_leap_cost, self.tile_cost = save_bonus, plain_leap_cost, tile_cost
         self.gen = torch.Generator(device=device).manual_seed(seed)
-        self.exists = grid_of_tiles(device)
+        self.exists = grid_of_tiles(device, radii)
+        # One robot alone starts on a random tile of the top floor, and any fall ends its run.
+        cells = self.exists[0].nonzero()
+        self.start_x = HEX_WIDTH * ((cells[:, 0] - REACH).float() + (cells[:, 1] - REACH).float() / 2)
+        self.start_y = 1.5 * HEX_RADIUS * (cells[:, 1] - REACH).float()
         self.env_index = torch.arange(envs, device=device)[:, None].expand(envs, AGENTS)
         shape = (envs, AGENTS)
         zeros = lambda: torch.zeros(shape, device=device)
@@ -184,6 +191,19 @@ class Sim:
         self.time[mask] = 0.0
         self.solid[mask] = self.exists
         self.touched_at[mask] = math.inf
+        if self.solo:
+            pick = (self.rand(count) * len(self.start_x)).long()
+            self.x[mask] = 0.0
+            self.y[mask] = 0.0
+            x, y = self.x[mask], self.y[mask]
+            x[:, 0], y[:, 0] = self.start_x[pick], self.start_y[pick]
+            self.x[mask], self.y[mask] = x, y
+            heading = 2 * math.pi * self.rand(count, AGENTS)
+            self.heading[mask], self.move_angle[mask], self.aim[mask], self.previous_command[mask] = heading, heading, heading, heading
+            self.foot_x[mask], self.foot_y[mask] = self.x[mask], self.y[mask]
+            mode = self.mode[mask]
+            mode[:, 1:] = OUT
+            self.mode[mask] = mode
 
     def lookup(self, table, layer, x, y):
         q, r, outside = cell_of(x, y)
@@ -245,14 +265,14 @@ class Sim:
         leap = acting & (move_action == MOVE_LEAP) & (now >= self.leap_ready) & straight & (self.speed > 1.5)
         # Legal only with no way forward on foot, so a robot can never leap across open floor.
         if self.strict_save:
-            leap = leap & self.way_is_blocked()
+            leap = leap & self.way_is_blocked() & (now >= self.leap_after)
         self.mode[leap] = LEAP
         self.timer[leap] = LEAP_SECONDS
         # A leap goes where it was pointed, without the usual turning lag.
         self.move_angle = torch.where(leap, self.heading, self.move_angle)
         self.aim = torch.where(leap, self.heading, self.aim)
         self.previous_command = torch.where(leap, self.heading, self.previous_command)
-        mean, spread, least, most = LEAP_DISTANCE
+        mean, spread, least, most = self.leap_distance
         distance = (mean + spread * torch.randn(self.x.shape, device=self.device, generator=self.gen)).clamp(least, most)
         self.leap_speed = torch.where(leap, distance / LEAP_SECONDS, self.leap_speed)
         gap = self.way_is_blocked() if self.strict_save else self.path_is_broken(GAP_LOOKS)
@@ -269,7 +289,10 @@ class Sim:
 
     def way_is_blocked(self):
         sector = 2 * math.pi / HEADINGS
-        return self.path_is_broken(BLOCKED_LOOKS) & self.path_is_broken(BLOCKED_LOOKS, sector) & self.path_is_broken(BLOCKED_LOOKS, -sector)
+        blocked = self.path_is_broken(BLOCKED_LOOKS)
+        for k in range(1, self.block_sectors + 1):
+            blocked = blocked & self.path_is_broken(BLOCKED_LOOKS, k * sector) & self.path_is_broken(BLOCKED_LOOKS, -k * sector)
+        return blocked
 
     def safe_past_own_tile(self, layer, x, y):
         """Untouched, or the tile this robot is on. Its own tile is always touched, and says nothing about the way ahead."""
@@ -286,7 +309,7 @@ class Sim:
 
     def substep(self):
         self.time += STEP
-        vanished = self.touched_at + TOUCH_SECONDS <= self.time[:, None, None, None]
+        vanished = self.touched_at + self.touch_seconds <= self.time[:, None, None, None]
         self.solid &= ~vanished
         self.touched_at[vanished] = math.inf
 
@@ -301,7 +324,7 @@ class Sim:
         slowed = 0.3 + 0.7 * ((1 + miss.cos()) / 2).sqrt()
         goal = run * self.target * self.pace * slowed
         self.speed = self.speed + (goal - self.speed) * min(STEP / GAIT_REACTION_SECONDS, 1.0)
-        carried = LAND_SPEED + (LAND_SLOW_SPEED - LAND_SPEED) * (age / LAND_CARRY_SECONDS)
+        carried = self.land_speed + (LAND_SLOW_SPEED - self.land_speed) * (age / LAND_CARRY_SECONDS)
         self.speed = torch.where(run & (age < LAND_CARRY_SECONDS), carried, self.speed)
         speed = torch.where(leap, self.leap_speed, self.speed)
         self.x += self.move_angle.cos() * speed * STEP * (run | leap)
@@ -356,7 +379,7 @@ class Sim:
         landed = (self.mode == LEAP) & ended & centre
         self.mode[landed] = RUN
         self.leap_ready[landed] = now[landed] + self.leap_cooldown
-        self.speed[landed] = LAND_SPEED
+        self.speed[landed] = self.land_speed
         self.landed_at = torch.where(landed, now, self.landed_at)
         self.foot_x = torch.where(landed, self.x, self.foot_x)
         self.foot_y = torch.where(landed, self.y, self.foot_y)
@@ -384,7 +407,7 @@ class Sim:
         before = self.layer.clone()
         self.layer[through] += 1
         self.reward -= through * (0.5 + 1.5 * self.personality[..., 0])
-        gone = through & (before == LAYERS - 1)
+        gone = through & ((before == LAYERS - 1) | self.solo)
         self.mode[gone] = OUT
         self.layer.clamp_(max=LAYERS - 1)
         self.reward -= gone * 2.0
@@ -410,8 +433,8 @@ class Sim:
         alive = self.mode != OUT
         self.reward += alive * 0.02
         left = alive.sum(dim=1)
-        over = (left <= 1) | (self.time >= MAX_ROUND_SECONDS)
-        winners = over[:, None] & alive & (left[:, None] == 1)
+        over = (left <= (0 if self.solo else 1)) | (self.time >= MAX_ROUND_SECONDS)
+        winners = over[:, None] & alive & (left[:, None] == 1) & (not self.solo)
         self.reward += winners * 5.0
         self.reward *= alive_before
         reward = self.reward
@@ -426,7 +449,7 @@ class Sim:
         solid, outside = self.lookup(self.solid, layer, x, y)
         touched, _ = self.lookup(self.touched_at, layer, x, y)
         extra = (slice(None), None) + (None,) * (x.dim() - 2)
-        left = ((touched - self.time[extra]) + TOUCH_SECONDS).clamp(0, TOUCH_SECONDS) / TOUCH_SECONDS
+        left = ((touched - self.time[extra]) + self.touch_seconds).clamp(0, self.touch_seconds) / self.touch_seconds
         return (solid & ~outside).float() * torch.where(touched.isinf(), torch.ones_like(left), 0.5 * left)
 
     def observe(self):
@@ -485,7 +508,7 @@ class Sim:
 
     def floor_left(self, layer):
         """How much of a floor is left, because a robot should know when its floor is nearly gone."""
-        left = self.solid.flatten(2).sum(dim=2).float() / self.exists.flatten(1).sum(dim=1).float()
+        left = self.solid.flatten(2).sum(dim=2).float() / self.exists.flatten(1).sum(dim=1).float().clamp(min=1)
         return left.gather(1, layer)
 
     def lookahead(self):
