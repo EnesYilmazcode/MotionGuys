@@ -81,14 +81,14 @@ const KNOCK_LINES = [
   (name: string, by: string) => `${by} ran over ${name}. Autonomy is hard.`,
 ];
 /**
- * Cut to the fights. Each knockdown gets a shot starting just before the hit, spaced so the camera
+ * Cut to the action. Each knockdown or hop gets a shot starting just before it, spaced so the camera
  * is not jumping constantly, and the normal spectator shots fill the time in between.
  */
 export function actionShots(meta: HexMeta, shots: Shot[], lead = 0.7, hold = 3.5): Shot[] {
   const win = meta.events.find(event => event.type === 'winner')?.t ?? Infinity;
   const action: Shot[] = [];
   for (const event of meta.events) {
-    if (event.type !== 'knock' || event.t >= win - 1) continue;
+    if ((event.type !== 'knock' && event.type !== 'leap') || event.t >= win - 1) continue;
     const start = Math.max(event.t - lead, 0);
     if (!action.length || start - action[action.length - 1].start >= hold) action.push({ start, runner: event.runner as number });
   }

@@ -88,7 +88,7 @@ def soundtrack(meta, times):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--seed", type=int, default=6)
     parser.add_argument("--dir", default="hex")
     parser.add_argument("--out", default="renders/hex.mp4")
     parser.add_argument("--url", default="http://localhost:5199/hex.html")

@@ -10,7 +10,7 @@ import { buildWorld, FLOOR_COLORS } from './world.ts';
 import './hex.css';
 
 const params = new URLSearchParams(location.search);
-const seed = params.get('seed') ?? '7';
+const seed = params.get('seed') ?? '6';
 const base = `${params.get('dir') ?? 'hex'}/seed_${seed}`;
 const [meta, buffer] = await Promise.all([
   fetch(`${base}.json`).then(r => r.json() as Promise<HexMeta>),
