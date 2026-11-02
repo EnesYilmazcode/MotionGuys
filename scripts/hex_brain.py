@@ -142,10 +142,10 @@ def cell_of(x, y):
 
 
 class Sim:
-    def __init__(self, envs, device="cpu", seed=0, save_bonus=SAVE_BONUS, plain_leap_cost=PLAIN_LEAP_COST, tile_cost=TILE_COST, strict_save=False, leap_cooldown=LEAP_COOLDOWN, land_fall_cost=0.0, leap_after=0.0, block_sectors=1, radii=FLOOR_RADII, touch_seconds=TOUCH_SECONDS, solo=False, leap_distance=LEAP_DISTANCE, land_speed=LAND_SPEED, solo_tiles=0, can_hold=False):
+    def __init__(self, envs, device="cpu", seed=0, save_bonus=SAVE_BONUS, plain_leap_cost=PLAIN_LEAP_COST, tile_cost=TILE_COST, strict_save=False, leap_cooldown=LEAP_COOLDOWN, land_fall_cost=0.0, leap_after=0.0, block_sectors=1, hole_bonus=False, radii=FLOOR_RADII, touch_seconds=TOUCH_SECONDS, solo=False, leap_distance=LEAP_DISTANCE, land_speed=LAND_SPEED, solo_tiles=0, can_hold=False):
         self.can_hold = can_hold
         self.touch_seconds, self.solo, self.leap_distance, self.land_speed = touch_seconds, solo, leap_distance, land_speed
-        self.leap_after, self.block_sectors = leap_after, block_sectors
+        self.leap_after, self.block_sectors, self.hole_bonus = leap_after, block_sectors, hole_bonus
         self.strict_save, self.leap_cooldown, self.land_fall_cost = strict_save, leap_cooldown, land_fall_cost
         self.envs, self.device = envs, device
         self.save_bonus, self.plain_leap_cost, self.tile_cost = save_bonus, plain_leap_cost, tile_cost
@@ -317,6 +317,9 @@ class Sim:
         distance = lerp(HOP_METERS) + HOP_METERS_SPREAD * torch.randn(self.x.shape, device=self.device, generator=self.gen)
         self.leap_speed = torch.where(leap, distance / LEAP_SECONDS, self.leap_speed)
         gap = self.way_is_blocked() if self.strict_save else self.path_is_broken(GAP_LOOKS)
+        # What a viewer can see: only a hop that really clears a hole pays, not one over a tile that is merely whitening.
+        if self.hole_bonus:
+            gap = self.hole_ahead()
         self.leap_gap = torch.where(leap, gap, self.leap_gap)
         # Jumping for show is what looked dumb, so only a leap over a real gap pays.
         self.reward -= (leap & ~gap) * self.plain_leap_cost
@@ -327,6 +330,11 @@ class Sim:
         solid, outside = self.lookup(self.solid, layer, x, y)
         touched, _ = self.lookup(self.touched_at, layer, x, y)
         return solid & ~outside & touched.isinf()
+
+    def hole_ahead(self):
+        cos, sin = self.heading.cos()[..., None], self.heading.sin()[..., None]
+        along = torch.tensor(GAP_LOOKS, device=self.device)[None, None]
+        return ~self.has_floor(self.layer[..., None], self.x[..., None] + cos * along, self.y[..., None] + sin * along).all(dim=-1)
 
     def way_is_blocked(self):
         sector = 2 * math.pi / HEADINGS

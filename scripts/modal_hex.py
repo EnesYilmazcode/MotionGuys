@@ -152,9 +152,9 @@ class Floors:
 class Brain:
     """Fills a one-round copy of the training sim with the real round's state and asks the network."""
 
-    def __init__(self, weights, seed, heading_temperature, move_temperature, radii=FLOOR_RADII, solo_tiles=0):
+    def __init__(self, weights, seed, heading_temperature, move_temperature, radii=FLOOR_RADII, solo_tiles=0, seen_touch_seconds=TOUCH_SECONDS):
         self.heading_temperature, self.move_temperature = heading_temperature, move_temperature
-        self.sim = Sim(1, "cpu", seed=seed, radii=radii, solo_tiles=solo_tiles)
+        self.sim = Sim(1, "cpu", seed=seed, radii=radii, solo_tiles=solo_tiles, touch_seconds=seen_touch_seconds)
         self.policy = Policy()
         self.policy.load_state_dict(torch.load(weights, map_location="cpu"))
         self.policy.eval()
@@ -358,7 +358,7 @@ def way_blocked(floors, layer, x, y, direction, sectors=1):
     return True
 
 
-def simulate(engine, asset_pool, skeleton, reference, seed, seconds, leap_reference, brains, policy, heading_temperature, move_temperature, leap_cooldown, land_hold, leaps_allowed, leap_after, block_sectors, leap_shape, solo_tiles, can_hold):
+def simulate(engine, asset_pool, skeleton, reference, seed, seconds, leap_reference, brains, policy, heading_temperature, move_temperature, leap_cooldown, land_hold, leaps_allowed, leap_after, block_sectors, leap_shape, solo_tiles, can_hold, seen_touch_seconds, fair_hops):
     solo = solo_tiles > 0
     small = small_floor(solo_tiles) if solo else None
     # The rail sits just outside a small board.
@@ -431,7 +431,7 @@ def simulate(engine, asset_pool, skeleton, reference, seed, seconds, leap_refere
         thinking = {int(i) for i in rng.permutation(RUNNERS)[:RUNNERS // 2]}
     else:
         thinking = set()
-    brain = Brain(f"{CACHE}/brain/policy_{policy}.pt", seed, heading_temperature, move_temperature, radii, solo_tiles) if thinking else None
+    brain = Brain(f"{CACHE}/brain/policy_{policy}.pt", seed, heading_temperature, move_temperature, radii, solo_tiles, seen_touch_seconds) if thinking else None
 
     index = {name: skeleton.index[name] for name in BODY}
     rest_pose = runners[0].character.current_pose.numpy()
@@ -631,7 +631,8 @@ def simulate(engine, asset_pool, skeleton, reference, seed, seconds, leap_refere
                 bodies.data.qvel[root_v:root_v + 2] = character.actual_velocity[:2]
             if runner.limp is None:
                 feet = {name: joints[name] for name in FEET}
-                if (started or not solo) and winner_at is None and runner.lift <= 0.0 and floors.time >= runner.no_trigger_until:
+                hop_windup = fair_hops and floors.time < runner.leaping_until and not runner.leap_airborne
+                if not hop_windup and (started or not solo) and winner_at is None and runner.lift <= 0.0 and floors.time >= runner.no_trigger_until:
                     for name, position in feet.items():
                         if position[2] < STEP_HEIGHT and floors.step_on(runner.layer, position[0], position[1], runner.index):
                             runner.tiles_broken += 1
@@ -656,7 +657,10 @@ def simulate(engine, asset_pool, skeleton, reference, seed, seconds, leap_refere
                         runner.leap_airborne = True
                     elif runner.leap_airborne:
                         from_x, from_y, from_t = runner.leap_from
-                        over_floor = supported
+                        # The hips decide a landing: a toe off the edge should not cancel a hop that came down on a tile.
+                        over_floor = supported or (fair_hops and floors.has_floor(runner.layer, root_x, root_y))
+                        if fair_hops and over_floor:
+                            runner.land_grace_until = floors.time + LAND_GRACE_SECONDS
                         floors.log("leap_touch", runner.index, seconds=round(floors.time - from_t, 3), distance=round(math.hypot(root_x - from_x, root_y - from_y), 3), floor=bool(over_floor))
                         runner.leap_from = None
                         if over_floor:
@@ -750,7 +754,7 @@ def simulate(engine, asset_pool, skeleton, reference, seed, seconds, leap_refere
 
 # An A10 starts in seconds. Waiting for a free L4 took minutes.
 @app.function(gpu="A10", volumes={CACHE: volume}, timeout=3000)
-def one_round(seed: int, seconds: float, brains: str, policy: str, heading_temperature: float, move_temperature: float, leap_cooldown: float, land_hold: float, leaps_allowed: bool, leap_after: float, block_sectors: int, leap_shape: str, solo_tiles: int, can_hold: bool) -> tuple[dict, bytes]:
+def one_round(seed: int, seconds: float, brains: str, policy: str, heading_temperature: float, move_temperature: float, leap_cooldown: float, land_hold: float, leaps_allowed: bool, leap_after: float, block_sectors: int, leap_shape: str, solo_tiles: int, can_hold: bool, seen_touch_seconds: float, fair_hops: bool) -> tuple[dict, bytes]:
     import warp as wp
     from app.runtime.common.io.smart_primitive_document import SmartPrimitiveAssetPool
     from app.runtime.common.rig import ASSETS_ROOT, load_rig_assets, model_to_runtime
@@ -778,7 +782,7 @@ def one_round(seed: int, seconds: float, brains: str, policy: str, heading_tempe
     startup = time.perf_counter() - startup
     with wp.ScopedStream(engine.stream):
         t = time.perf_counter()
-        meta, data = simulate(engine, asset_pool, skeleton, reference, seed, seconds, leap_reference, brains, policy, heading_temperature, move_temperature, leap_cooldown, land_hold, leaps_allowed, leap_after, block_sectors, leap_shape, solo_tiles, can_hold)
+        meta, data = simulate(engine, asset_pool, skeleton, reference, seed, seconds, leap_reference, brains, policy, heading_temperature, move_temperature, leap_cooldown, land_hold, leaps_allowed, leap_after, block_sectors, leap_shape, solo_tiles, can_hold, seen_touch_seconds, fair_hops)
     meta["timing"] = {"startupSeconds": startup, "simulateSeconds": time.perf_counter() - t}
     volume.commit()
     print(f"seed {seed}: {meta['frames']} frames, {meta['timing']}")
@@ -786,13 +790,13 @@ def one_round(seed: int, seconds: float, brains: str, policy: str, heading_tempe
 
 
 @app.local_entrypoint()
-def main(seeds: str = "1", seconds: float = MAX_SECONDS, brains: str = "all", policy: str = "hop", folder: str = "hex", heading_temperature: float = BRAIN_TEMPERATURE, move_temperature: float = BRAIN_TEMPERATURE, leap_cooldown: float = 0.5, land_hold: float = 0.0, no_leaps: bool = False, leap_after: float = 10.0, block_sectors: int = 1, leap_shape: str = "2.2,0.6", solo_tiles: int = 0, no_hold: bool = False):
+def main(seeds: str = "1", seconds: float = MAX_SECONDS, brains: str = "all", policy: str = "finalhold", folder: str = "hex", heading_temperature: float = BRAIN_TEMPERATURE, move_temperature: float = BRAIN_TEMPERATURE, leap_cooldown: float = 0.5, land_hold: float = 0.0, no_leaps: bool = False, leap_after: float = 10.0, block_sectors: int = 1, leap_shape: str = "2.2,0.6", solo_tiles: int = 0, no_hold: bool = False, hold: bool = False, seen_touch_seconds: float = TOUCH_SECONDS, fair_hops: bool = False):
     out = Path(__file__).resolve().parent.parent / "runs" / folder
     out.mkdir(parents=True, exist_ok=True)
     # One container per seed, so three rounds take about as long as one.
     numbers = [int(s) for s in seeds.split(",")]
     failures = []
-    for result in one_round.starmap([(n, seconds, brains, policy, heading_temperature, move_temperature, leap_cooldown, land_hold, not no_leaps, leap_after, block_sectors, leap_shape, solo_tiles, solo_tiles > 0 and not no_hold) for n in numbers], return_exceptions=True):
+    for result in one_round.starmap([(n, seconds, brains, policy, heading_temperature, move_temperature, leap_cooldown, land_hold, not no_leaps, leap_after, block_sectors, leap_shape, solo_tiles, (solo_tiles > 0 and not no_hold) or hold, seen_touch_seconds, fair_hops) for n in numbers], return_exceptions=True):
         if isinstance(result, BaseException):
             failures.append(result)
             print("FAILED", result)

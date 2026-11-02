@@ -19,9 +19,10 @@ from hex_brain import AGENTS, GAITS, MOVE_RUN, OUT, RUN, Policy, Sim, scripted_a
 GAMMA = 0.995
 LAMBDA = 0.95
 HORIZON = 96
-ENVS = 1024
+# Four times the old batch, because the A10s sat at about 50% busy and 14% of memory.
+ENVS = 4096
 EPOCHS = 3
-MINIBATCH = 32768
+MINIBATCH = 131072
 CLIP = 0.2
 LR = 3e-4
 # Things worth comparing, by tag. Anything not listed uses the defaults in hex_brain.py.
@@ -68,6 +69,27 @@ VARIANTS = {
     "noisy10": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 10, "can_hold": True},
     "noisy10b": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 10, "can_hold": True},
     "noisy19": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "solo_tiles": 19, "can_hold": True},
+    "final": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 0.5, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1},
+    "final2": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 0.5, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1},
+    "finalcare": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 0.5, "land_fall_cost": 1.5, "leap_after": 10.0, "block_sectors": 1},
+    "final3": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 0.5, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1},
+    "final4": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 0.5, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1},
+    "final5": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 0.5, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1},
+    "finalhold": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 0.5, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1, "can_hold": True},
+    "finalhold2": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 0.5, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1, "can_hold": True},
+    "finalhold3": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 0.5, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1, "can_hold": True},
+    "tact": {"strict_save": True, "block_sectors": 0, "hole_bonus": True, "save_bonus": 1.5, "leap_cooldown": 0.5, "land_fall_cost": 0.3, "leap_after": 10.0, "can_hold": True},
+    "tact2": {"strict_save": True, "block_sectors": 0, "hole_bonus": True, "save_bonus": 1.5, "leap_cooldown": 0.5, "land_fall_cost": 0.3, "leap_after": 10.0, "can_hold": True},
+    "tact3": {"strict_save": True, "block_sectors": 0, "hole_bonus": True, "save_bonus": 1.5, "leap_cooldown": 0.5, "land_fall_cost": 0.3, "leap_after": 10.0, "can_hold": True, "save_bonus": 2.5},
+    "tact4": {"strict_save": True, "block_sectors": 0, "hole_bonus": True, "save_bonus": 1.5, "leap_cooldown": 0.5, "land_fall_cost": 0.3, "leap_after": 10.0, "can_hold": True},
+    "tact5": {"strict_save": True, "block_sectors": 0, "hole_bonus": True, "save_bonus": 1.5, "leap_cooldown": 0.5, "land_fall_cost": 0.3, "leap_after": 10.0, "can_hold": True, "save_bonus": 2.5},
+    "tact6": {"strict_save": True, "block_sectors": 0, "hole_bonus": True, "save_bonus": 1.5, "leap_cooldown": 0.5, "land_fall_cost": 0.3, "leap_after": 10.0, "can_hold": True, "land_fall_cost": 0.0},
+    "tact7": {"strict_save": True, "block_sectors": 0, "hole_bonus": True, "save_bonus": 1.5, "leap_cooldown": 0.5, "land_fall_cost": 0.3, "leap_after": 10.0, "can_hold": True, "tile_cost": 0.08},
+    "big10": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "can_hold": True, "solo_tiles": 10},
+    "big19": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "can_hold": True, "solo_tiles": 19},
+    "margin10": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "can_hold": True, "touch_seconds": 1.2, "envs": 1024, "solo_tiles": 10},
+    "margin10b": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "can_hold": True, "touch_seconds": 1.2, "envs": 1024, "solo_tiles": 10},
+    "margin19": {"solo": True, "plain_leap_cost": 0.0, "save_bonus": 0.0, "tile_cost": 0.0, "leap_cooldown": 0.5, "can_hold": True, "touch_seconds": 1.2, "envs": 1024, "solo_tiles": 19},
     "gated1": {"strict_save": True, "save_bonus": 1.0, "leap_cooldown": 2.0, "land_fall_cost": 0.7, "leap_after": 10.0, "block_sectors": 1},
 }
 
@@ -124,7 +146,10 @@ def train(iterations: int, seed: int, tag: str) -> tuple[str, bytes, list[dict]]
 
     torch.manual_seed(seed)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    sim = Sim(ENVS, device, seed=seed, **VARIANTS.get(tag, {}))
+    settings = dict(VARIANTS.get(tag, {}))
+    envs = settings.pop("envs", ENVS)
+    minibatch = MINIBATCH * envs // ENVS
+    sim = Sim(envs, device, seed=seed, **settings)
     policy = Policy().to(device)
     # Warm start: tags in WARM begin from the network that learned to survive alone on a small floor.
     if tag in WARM:
@@ -132,7 +157,7 @@ def train(iterations: int, seed: int, tag: str) -> tuple[str, bytes, list[dict]]
     optimizer = torch.optim.Adam(policy.parameters(), lr=LR, eps=1e-5)
     log = []
     started = time.perf_counter()
-    samples_per_iteration = HORIZON * ENVS * AGENTS
+    samples_per_iteration = HORIZON * envs * AGENTS
 
     def save():
         buffer = io.BytesIO()
@@ -191,8 +216,8 @@ def train(iterations: int, seed: int, tag: str) -> tuple[str, bytes, list[dict]]
         count = obs.shape[0]
         for _ in range(EPOCHS):
             order = torch.randperm(count, device=device)
-            for start in range(0, count, MINIBATCH):
-                index = order[start:start + MINIBATCH]
+            for start in range(0, count, minibatch):
+                index = order[start:start + minibatch]
                 heading_logits, gait_logits, move_logits, value = policy(obs[index])
                 heading_dist, gait_dist, move_dist = Categorical(logits=heading_logits), Categorical(logits=gait_logits), Categorical(logits=move_logits)
                 log_prob = heading_dist.log_prob(heading[index]) + gait_dist.log_prob(gait[index]) + move_dist.log_prob(move[index])
