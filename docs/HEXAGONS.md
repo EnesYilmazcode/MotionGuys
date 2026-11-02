@@ -33,7 +33,7 @@ Footage studied, not stored in this repo: two no-commentary rounds on YouTube, `
 ## Changed on purpose
 
 - **The timer is now 1.4 s, up from 0.9 s, and the footage shows 0.43 s.** Alone on 19 tiles, a trained robot used 67% of the board at 0.9 s and 91% at 1.4 s, because bodies take time to turn. It no longer matches the game, on purpose.
-- **The earlier 0.9 s came from the footage ratio.** In the footage a character crosses a tile in about 0.33 s, so a tile lasts 1.3 crossings. MotionBricks runners top out near 3.3 m/s, so crossing takes about 0.7 s here. At a literal 0.43 s, runners fell through their own tiles and all eight were out in 25 s. Keeping the ratio gave rounds of 39 s to 55 s with the hand-written policy. With the trained network rounds run 53 s to 68 s.
+- **The earlier 0.9 s came from the footage ratio.** In the footage a character crosses a tile in about 0.33 s, so a tile lasts 1.3 crossings. MotionBricks runners top out near 3.3 m/s, so crossing takes about 0.7 s here. At a literal 0.43 s, runners fell through their own tiles and all eight were out in 25 s. Keeping the ratio gave rounds of 39 s to 55 s with the hand-written policy. With the trained network rounds run 72 s to 82 s.
 - **Tiles are 2.4 m corner to corner, not 3.2 m.** These bodies are tall and thin, not short and round, and slower, so a smaller tile keeps the same rhythm.
 - **Eight players, not twenty,** with floors to match, like the game's smaller variant.
 - **Knockdowns look different.** Robots land on their feet after a plain drop, like the game. A knockdown is a MuJoCo ragdoll and a generated get-up.

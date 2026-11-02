@@ -4,7 +4,7 @@
 A trained policy chooses the route, the pace, and when to hop, NVIDIA MotionBricks generates the movement, and MuJoCo simulates knockdowns.</p>
 
 <p align="center">
-  <img src="media/hop-round.gif" width="640" alt="Humanoid robots run, leap, and tumble on a honeycomb of hexagons that whiten and vanish, above floors of blue and purple and a pool of pink slime">
+  <img src="media/hop-final-round.gif" width="640" alt="Humanoid robots run, leap, and tumble on a honeycomb of hexagons that whiten and vanish, above floors of blue and purple and a pool of pink slime">
 </p>
 
 MotionGuys has grown from an obstacle race into **Hex-A-Bots**: eight simulated humanoids competing on six floors of disappearing hexagons above pink slime. It combines learned decisions, generated motion, physical falls, and a browser spectator view with robot tracking, a live tile counter, crowns, and confetti.
@@ -25,9 +25,9 @@ The lineup is Optimus, Figure, G1, H1, Apollo, Atlas, T1, and Petman. They share
 
 <table>
   <tr>
-    <td><img src="media/hop-rush.gif" alt="Eight robots rush the top floor and tiles whiten and vanish under them"></td>
-    <td><img src="media/hop-eliminated.gif" alt="An ELIMINATED banner appears as a robot falls into the slime while another keeps running"></td>
-    <td><img src="media/hop-winner.gif" alt="Apollo wins on the last floor, wearing the crown under falling confetti"></td>
+    <td><img src="media/hop-final-rush.gif" alt="Eight robots rush the top floor and tiles whiten and vanish under them"></td>
+    <td><img src="media/hop-final-eliminated.gif" alt="An ELIMINATED banner appears as a robot falls into the slime while another keeps running"></td>
+    <td><img src="media/hop-final-winner.gif" alt="Atlas wins on the last floor, wearing the crown under falling confetti"></td>
   </tr>
   <tr>
     <td align="center">The rush</td>
@@ -36,23 +36,24 @@ The lineup is Optimus, Figure, G1, H1, Apollo, Atlas, T1, and Petman. They share
   </tr>
 </table>
 
-| Measure, over the 12 rounds in `public/hex/` | Value |
+| Measure, over the 6 rounds in `public/hex/` | Value |
 |---|---:|
-| Time to a winner, counting the 3 s countdown | 53.0 s to 67.8 s |
-| Tiles touched | 6,148, 56% of each board |
-| Falls | 550, 46 per round |
-| Knockdowns by another robot | 2 |
-| Hops attempted / landed on floor | 587 / 566 |
-| Generated get-ups, only after a knockdown or the last plunge | 19 |
-| Wins | H1 5, Apollo 4, Optimus 1, G1 1, T1 1, Figure 0, Atlas 0, Petman 0 |
+| Time to a winner, counting the 3 s countdown | 72.3 s to 82.3 s |
+| Tiles touched | 3,732, 68% of each board |
+| Falls | 264, 44 per round |
+| Knockdowns by another robot | 11 |
+| Hops attempted / landed on floor | 288 / 282 |
+| Holds | 19 across all robots, about 3 per round |
+| Generated get-ups, only after a knockdown or the last plunge | 18 |
+| Wins | T1 2, Atlas 2, Apollo 1, Figure 1 |
 
 Wins say nothing about real hardware. Every robot shares one skeleton and one network, and differs only in personality and mass. Motion is not retargeted to each body either.
 
 ### Is the trained brain better?
 
-A separate local evaluation gave four randomly selected robots the network and four the hand-written policy in each of 24 recorded rounds. The network won **24 of 24 rounds**, against an even-match baseline of 12 wins.
+An earlier brain from the same day, `hopcold`, was tested fairly: four randomly selected robots ran the network and four the hand-written policy in each of 24 recorded rounds. It won **24 of 24 rounds**, against an even-match baseline of 12. **The brain in the public rounds has not had this test yet.** Its numbers below are only from its own rounds.
 
-| Local evaluation, seeds 101-124 | Network | Hand-written policy |
+| `hopcold`, seeds 101-124 | Network | Hand-written policy |
 |---|---:|---:|
 | Wins | 24 | 0 |
 | Mean survival time | 56.5 s | 36.9 s |
@@ -65,38 +66,44 @@ Training uses self-play in a fast simulation in `scripts/hex_brain.py`, with one
 
 ### When robots hop
 
-The public rounds use the `hopcold` brain, recorded with short hops of about one tile, a 1.4 s tile timer, and a smaller board. A hop is legal only when straight ahead and a sector to either side all break within 2 m, not counting the tile underfoot, and never in the first 10 s of play. A hop earns reward only if the robot is still on its feet 2 s after landing. A robot that drops through a hole keeps running and lands on its feet on the next floor. MuJoCo handles knockdowns and the last plunge into the slime.
+The public rounds use the `finalhold` brain, whose weights are in `weights/`. It plays with short hops of about one tile, a 1.4 s tile timer, and a smaller board. A hop is legal only when straight ahead and a sector to either side all break within 2 m, not counting the tile underfoot, and never in the first 10 s of play. A hop earns reward only if the robot is still on its feet 2 s after landing. A robot that drops through a hole keeps running and lands on its feet on the next floor. MuJoCo handles knockdowns and the last plunge into the slime.
+
+A robot can also hold: it freezes in its last generated pose and turns on the spot, because a true stop would play evaluation-only clips. It rarely does, about 3 times per round across all eight robots.
+
+Two rule changes matter for fairness. A hop's windup no longer burns the tiles under it, and the hips decide a landing rather than the first toe. Both change the game a little, and they gave the biggest single gain of the day. On 19 tiles alone, a median run went from about 7 s to 15.4 s.
 
 | Real rounds, by brain | Round length, median | Falls per round | Tiles used | Hops per round | Hops landed |
 |---|---:|---:|---:|---:|---:|
 | First trained brain, never hops | 70 s | 80 | 41% | 0 | n/a |
-| Long leaps, no calibrated landing rule | 74 s | 53 | 51% | 80 | 92% |
-| `hopcold`, the public rounds | 61 s | 46 | 56% | 49 | 97% |
+| Long leaps, rejected after watching it | 74 s | 53 | 51% | 80 | 92% |
+| `hopcold`, one-tile hops | 61 s | 46 | 56% | 49 | 97% |
+| `finalhold`, the public rounds | 77 s | 44 | 68% | 48 | 98% |
 
-The second row's brain was rejected after watching it: robots jumped at the start of a round and then fell. A bug had counted the tile a robot stands on as blocking the path, so its numbers looked better than its play.
+The rejected brain jumped at the start of a round and then fell. A bug had counted the tile a robot stands on as blocking the path, so its numbers looked better than its play. Each row has only 6 to 24 rounds.
 
 ### Getting the mechanics right on tiny boards
 
-The next stage is one robot alone on a few tiles, where the best possible score can be calculated. A tile lasts 1.4 s and a hop adds about 0.47 s in the air, so `scripts/ceiling.py` gives a ceiling of 18.2 s on 10 tiles and 35.1 s on 19. In real motion the median run lasts about 5 s on 10 tiles and 7 s on 19, with best runs of 15.5 s and 20.4 s. These networks can also hold still, by freezing in the last generated pose and turning on the spot, because a true stop would play evaluation-only clips. The numbers are not good enough to ship yet. They are in the code here but not in the public rounds, which were recorded by the commit before the tiny-board work.
+The next stage is one robot alone on a few tiles. A tile lasts 1.4 s and a hop adds about 0.47 s in the air, so `scripts/ceiling.py` gives an upper bound of 18.2 s on 10 tiles and 35.1 s on 19. That bound ignores a hop's windup and run-on, so it is not reachable, and a review put about 12 to 13 s on 10 tiles as achievable. In real motion the median run lasts 7.2 s on 10 tiles and 15.4 s on 19, with best runs of 22.1 s and 26.9 s. Best runs are the top of 16 tries.
 
 The arena is rebuilt from real gameplay footage: tile shape, timing, floor colors, rails, and slime. [docs/HEXAGONS.md](docs/HEXAGONS.md) lists what was measured, what was inferred, and what changed on purpose. Robots are cut into one rigid part per bone by `scripts/build_robots.py` and stretched between recorded joints, with no rigging. Model authors and licenses are in [CREDITS.md](CREDITS.md).
 
 Known limits:
 
 - **Running is not physics.** A running robot follows MotionBricks exactly and only turns into a physical body once it is hit or falls, so it cannot stumble and catch itself.
-- **Robots still fall a lot,** about 5.7 times per robot per round, down from 10, close to the five drops the floors require. 24% of landings end in a fall within 2 s, because a body runs on after touching down and cannot turn in time.
-- **Almost half the arena goes unused.** Rounds end with about 56% of tiles touched.
-- **Feet slide.** About 5.8 m/s at the 95th percentile. Slower gaits slide more on the model's own, measured at about 6.5 m/s below 3 m/s and about 0.5 m/s at a full run.
+- **Robots still fall a lot,** about 5.5 times per robot per round, down from 10, close to the five drops the floors require. 17% of landings end in a fall within 2 s, because a body runs on after touching down and cannot turn in time.
+- **About a third of the arena goes unused.** Rounds end with about 68% of tiles touched.
+- **Feet slide.** About 6.0 m/s at the 95th percentile. Slower gaits slide more on the model's own, measured at about 6.5 m/s below 3 m/s and about 0.5 m/s at a full run.
 - **Limbs pass through their own body,** because a limp robot does not collide with itself.
 - **Waiting robots shift their weight** in the browser, a drawn effect, because upstream idle clips cannot be recorded.
-- **Some winners do not survive.** In 1 of the 12 rounds the winner was already falling and goes into the slime last.
+- **Some winners do not survive.** In 0 of the 6 rounds the winner was already falling and goes into the slime last.
 - **Figure is not a real Figure.** No usable model exists, so it is a repainted Tesla Bot mesh.
 
 ### What to improve next
 
-The movement is good enough for now. The weak part is still how robots read the map and how little they can adjust after a hop. Those numbers come from `scripts/check_falls.py` and `scripts/check_leaps.py`.
+The movement is good enough for now. The weak part is carrying out a plan: robots die with fresh tiles nearby. A three-way design review found the small network is not the main limit. Next:
 
-1. **Land better.** Train the network on where a landing really ends up, or generate a landing that absorbs more speed. Letting the current landing play longer did not help.
+1. **Fix the sim.** A holding robot can still glide after a landing in training, and a real pose cannot. Letting the landing play longer did not help.
+1. **Choose tiles, not headings.** Hold, or hop to one of six neighbours with exact aim, scored per neighbour. A scripted expert can be the baseline and teacher.
 2. **Plan a route.** Each robot reacts every 0.3 s to what is around it. A short search through the untouched tiles, a few steps ahead, would stop robots from running into dead ends and give the network a target instead of a direction.
 3. **Train on real motion.** Calibration closed most of the gap, but the dots still never catch a rim. Finishing training in the real rounds would close the rest.
 4. **Stand still.** Waiting on a tile is the smartest move in the game and the robots cannot make it. It needs idle motion that is licensed for this use, or a trained balance policy.
@@ -205,7 +212,7 @@ All 24 runners finished, from 42.7 s to 68.4 s, and all 93 get-ups completed wit
 
 ## The video
 
-The GIFs in Hex-A-Bots are cut from a real-time render of recorded round 7.
+The GIFs in Hex-A-Bots are cut from a real-time render of recorded round 6. The posted video is the same round at 1.15x with the countdown cut, and the camera cuts to hops.
 
 ## Run it
 
@@ -226,8 +233,8 @@ Open the printed local URL with **`/hex.html`** appended. It starts with round 7
 | Wide | Toggle the wide arena view |
 | Pause / Resume | Stop or continue playback |
 | Again | Restart the recording |
-| `?seed=1` through `?seed=12` | Choose a recorded round |
-| `?seed=7&speed=0.5` | Watch round 7 at half speed |
+| `?seed=1` through `?seed=6` | Choose a recorded round |
+| `?seed=6&speed=0.5` | Watch round 6 at half speed |
 
 For the earlier modes, open `/spleef.html?seed=4` (seeds 1-6) or `/index.html?seed=1` (seeds 1-3). In Spleef, drag to look around and double-click to return to the spectator camera.
 
@@ -250,22 +257,22 @@ python -m pip install modal modal-progress torch numpy mujoco==3.3.7
 modal setup
 ```
 
-Train first if the volume has no `brain/policy_hopcold.pt`, then record. Training uses an A10 and takes about 50 minutes; the recording image fetches the pinned upstream MotionBricks runtime and model assets and runs inference remotely.
+To skip training, upload the released weights with `modal volume put motionguys-cache weights/policy_finalhold.pt brain/policy_finalhold.pt`. Otherwise train first, then record. Training uses an A10 and takes about 27 minutes; the recording image fetches the pinned upstream MotionBricks runtime and model assets and runs inference remotely.
 
 ```bash
-modal run scripts/modal_brain.py --iterations 400 --tags hopcold
-modal run scripts/modal_hex.py --seeds 1,2,3
+modal run scripts/modal_brain.py --iterations 180 --tags finalhold
+modal run scripts/modal_hex.py --seeds 1,2,3 --policy finalhold --hold --fair-hops
 python scripts/check_hex.py runs/hex
 python scripts/check_leaps.py runs/hex
 python scripts/check_leap_value.py runs/hex
 ```
 
-Training also saves `runs/brain/policy_hopcold.pt` and `runs/brain/log_hopcold.jsonl` locally. Other tags in `scripts/modal_brain.py` train other reward settings, and `--policy` picks one when recording. `scripts/modal_turn.py` measures the real turning response the training sim copies. Recording writes paired `seed_N.json` metadata and `seed_N.bin` poses into `runs/hex/`. These outputs are ignored by Git. To watch a new round, copy both files into `public/hex/` and select its seed in the browser. Use a fresh seed number to keep the showcase recordings.
+Training also saves `runs/brain/policy_finalhold.pt` and `runs/brain/log_finalhold.jsonl` locally. Other tags in `scripts/modal_brain.py` train other reward settings, and `--policy` picks one when recording. `scripts/modal_turn.py` measures the real turning response the training sim copies. Recording writes paired `seed_N.json` metadata and `seed_N.bin` poses into `runs/hex/`. These outputs are ignored by Git. To watch a new round, copy both files into `public/hex/` and select its seed in the browser. Use a fresh seed number to keep the showcase recordings.
 
 To compare the policy against the script, record fresh rounds with `--brains half`, then score the same seed range. For example:
 
 ```bash
-modal run scripts/modal_hex.py --seeds 201,202,203 --brains half
+modal run scripts/modal_hex.py --seeds 201,202,203 --brains half --policy finalhold --hold --fair-hops
 python scripts/check_brain.py --first 201 --last 203
 ```
 
@@ -278,7 +285,7 @@ The README GIFs come from recorded round 7. To render a video with event-based s
 ```bash
 python -m pip install playwright modal-progress
 npm run build
-modal run scripts/modal_render.py --seed 7 --out renders/hex-bots.mp4
+modal run scripts/modal_render.py --seed 6 --out renders/hex-bots.mp4
 ```
 
 To rebuild processed robot meshes, download the source models listed in [CREDITS.md](CREDITS.md), arrange them as expected by `scripts/build_robots.py`, and run:
